@@ -1,7 +1,7 @@
 CUDA Introduction - Flocking
 ============================
 
-This is due Sunday, September 8.
+This is due Sunday, September 13.
 
 **Summary:** In this project, you will get some real experience writing simple
 CUDA kernels, using them, and analyzing their performance. You'll implement a
@@ -319,7 +319,7 @@ list of `SOURCE_FILES`), mention it explicitly. Beware of any build issues discu
 
 Open a GitHub pull request so that we can see that you have finished.
 The title should be "Project 1: YOUR NAME".
-The template of the comment section of your pull request is attached below, you can do some copy and paste:  
+The template of the comment section of your pull request is attached below, you can do some copy and paste:
 
 * [Repo Link](https://link-to-your-repo)
 * (Briefly) Mentions features that you've completed. Especially those bells and whistles you want to highlight
