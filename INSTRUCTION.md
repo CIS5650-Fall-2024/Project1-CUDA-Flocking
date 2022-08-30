@@ -1,7 +1,7 @@
 CUDA Introduction - Flocking
 ============================
 
-This is due Sunday, September 12 2021.
+This is due Sunday, September 11 2022.
 
 **Summary:** In this project, you will get some real experience writing simple
 CUDA kernels, using them, and analyzing their performance. You'll implement a
