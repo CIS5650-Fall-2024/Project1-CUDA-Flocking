@@ -275,7 +275,7 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 
   if (rule3Count != 0) {
     perceivedVel /= rule3Count;
-    glm::vec3 rule3 = perceivedVel * rule3Scale;
+    rule3 = perceivedVel * rule3Scale;
   }
   else {
     rule3 = glm::vec3(0);
