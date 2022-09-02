@@ -263,12 +263,25 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     }
   }
 
-  perceivedCenter /= rule1Count;
-  perceivedVel /= rule3Count;
+  glm::vec3 rule1, rule2, rule3;
 
-  glm::vec3 rule1 = (perceivedCenter - pos[iSelf]) * rule1Scale;
-  glm::vec3 rule2 = neighboursOffset * rule2Scale;
-  glm::vec3 rule3 = perceivedVel * rule3Scale;
+  if (rule1Count != 0) {
+    perceivedCenter /= rule1Count;
+    rule1 = (perceivedCenter - pos[iSelf]) * rule1Scale;
+  }
+  else {
+    rule1 = glm::vec3(0);
+  }
+
+  if (rule3Count != 0) {
+    perceivedVel /= rule3Count;
+    glm::vec3 rule3 = perceivedVel * rule3Scale;
+  }
+  else {
+    rule3 = glm::vec3(0);
+  }
+
+  rule2 = neighboursOffset * rule2Scale;
 
   return vel[iSelf] + rule1 + rule2 + rule3;
 }
