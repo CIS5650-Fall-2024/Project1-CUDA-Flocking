@@ -243,7 +243,6 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     int numValid1 = 0;
 
     glm::vec3 c = glm::vec3(0.f);
-    int numValid2 = 0;
 
     glm::vec3 perceivedVelocity = glm::vec3(0.f);
     int numValid3 = 0;
@@ -261,7 +260,6 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
         // Rule 2
         if (i != iSelf && dist < rule2Distance) {
             c -= (bPos - selfPos);
-            numValid2 += 1;
         }
 
         // Rule 3
@@ -273,13 +271,17 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     }
 
     // todo: prevent division by 0
-    center /= numValid1;
+    if (numValid1 != 0) {
+        center /= numValid1;
+        velocityChange += (center - selfPos) * rule1Scale;
+    }
 
-    perceivedVelocity /= numValid3;
-
-    velocityChange += (center - selfPos) * rule1Scale;
     velocityChange += c * rule2Scale;
-    velocityChange += perceivedVelocity * rule3Scale;
+
+    if (numValid3 != 0) {
+        perceivedVelocity /= numValid3;
+        velocityChange += perceivedVelocity * rule3Scale;
+    }
 
     return velocityChange;
 
