@@ -272,6 +272,7 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 
     }
 
+    // todo: prevent division by 0
     center /= numValid1;
 
     perceivedVelocity /= numValid3;
@@ -303,7 +304,12 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
         return;
     }
     glm::vec3 velChange = computeVelocityChange(N, index, pos, vel1);
-    vel2[index] = vel1[index] + velChange;
+    glm::vec3 finalVel = vel1[index] + velChange;
+    float speed = glm::length(finalVel);
+    if (speed > maxSpeed) {
+        finalVel = finalVel * maxSpeed / speed;
+    }
+    vel2[index] = finalVel;
 }
 
 /**
@@ -413,9 +419,10 @@ void Boids::stepSimulationNaive(float dt) {
     kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_pos, dev_vel1, dev_vel2);
     kernUpdatePos<<<fullBlocksPerGrid, blockSize>>>(numObjects, dt, dev_pos, dev_vel1);
 
-    glm::vec3 *pingPongTemp = dev_vel1;
-    dev_vel1 = dev_vel2;
-    dev_vel2 = pingPongTemp;
+    /*glm::vec3 pingPongTemp = *dev_vel1;
+    *dev_vel1 = *dev_vel2;
+    *dev_vel2 = pingPongTemp;*/
+    std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
