@@ -70,6 +70,9 @@ glm::vec3 *dev_pos;
 glm::vec3 *dev_vel1;
 glm::vec3 *dev_vel2;
 
+// ping-pong buffer index
+int stepIdx = 0;
+
 // LOOK-2.1 - these are NOT allocated for you. You'll have to set up the thrust
 // pointers on your own too.
 
@@ -233,7 +236,43 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
   // Rule 2: boids try to stay a distance d away from each other
   // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+
+  glm::vec3 percCenterSum(0.0f);
+  int numNeighborRule1 = 0;
+
+  glm::vec3 distanceKeeping(0.0f);
+
+  glm::vec3 percVelocitySum(0.0f);
+  int numNeighborRule3 = 0;
+
+  for (int i = 0; i < N; i++) {
+    if (i == iSelf) {
+      continue;
+    }
+    float dist = glm::distance(pos[i], pos[iSelf]);
+
+    if (dist < rule1Distance) {
+      percCenterSum += pos[i];
+      numNeighborRule1++;
+    }
+    if (dist < rule2Distance) {
+      distanceKeeping -= pos[i] - pos[iSelf];
+    }
+    if (dist < rule3Distance) {
+      percVelocitySum += vel[i];
+      numNeighborRule3++;
+    }
+  }
+
+  glm::vec3 dVel = distanceKeeping * rule2Scale;
+  if (numNeighborRule1) {
+    dVel += (percCenterSum / float(numNeighborRule1) - pos[iSelf]) * rule1Scale;
+  }
+  if (numNeighborRule3) {
+    dVel += percVelocitySum / float(numNeighborRule3) * rule3Scale;
+  }
+
+  return dVel;
 }
 
 /**
@@ -245,6 +284,13 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index >= N) {
+    return;
+  }
+  glm::vec3 dVel = computeVelocityChange(N, index, pos, vel1);
+  vel2[index] = glm::clamp(vel1[index] + dVel, glm::vec3(-maxSpeed), glm::vec3(maxSpeed));
 }
 
 /**
@@ -349,6 +395,16 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+
+  int blockNum = (numObjects + blockSize - 1) / blockSize;
+
+  glm::vec3* velOld = stepIdx ? dev_vel1 : dev_vel2;
+  glm::vec3* velNew = stepIdx ? dev_vel2 : dev_vel1;
+  stepIdx ^= 1;
+
+  kernUpdateVelocityBruteForce<<<blockNum, blockSize>>>(numObjects, dev_pos,
+    velOld, velNew);
+  kernUpdatePos<<<blockNum, blockSize>>>(numObjects, dt, dev_pos, velNew);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
