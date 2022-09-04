@@ -397,40 +397,16 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
   // Identify the start point of each cell in the gridIndices array.
   // This is basically a parallel unrolling of a loop that goes
   // "this index doesn't match the one before it, must be a new cell!"
-    int cell_index = threadIdx.x + threadIdx.y * blockDim.x + threadIdx.z * blockDim.x * blockDim.y;
-    
-    // lower bound search for the start index
-    int l = 0, r = N;
-    while (l < r) {
-        int m = l + ((r - l) >> 1);
-        if (particleGridIndices[m] < cell_index) {
-            l = m + 1;
-        } else {
-            r = m;
-        }
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index >= N) {
+        return;
     }
 
-    if (l < N && particleGridIndices[l] == cell_index) {
-        gridCellStartIndices[cell_index] = l;
-    } else {
-        gridCellStartIndices[cell_index] = gridCellEndIndices[cell_index] = -1;
+    if (!index || particleGridIndices[index - 1] != particleGridIndices[index]) {
+        gridCellStartIndices[particleGridIndices[index]] = index;
     }
-    
-    // upper bound search for the end index
-    l = 0, r = N;
-    while (l < r) {
-        int m = l + ((r - l) >> 1);
-        if (particleGridIndices[m] <= cell_index) {
-            l = m + 1;
-        } else {
-            r = m;
-        }
-    }
-
-    if (l - 1 >= 0 && particleGridIndices[l-1] == cell_index) {
-        gridCellEndIndices[cell_index] = l-1;
-    } else {
-        gridCellStartIndices[cell_index] = gridCellEndIndices[cell_index] = -1;
+    if (index == N - 1 || particleGridIndices[index + 1] != particleGridIndices[index]) {
+        gridCellEndIndices[particleGridIndices[index]] = index + 1; // I use half-open intervals
     }
 }
 
@@ -468,10 +444,11 @@ __global__ void kernUpdateVelNeighborSearchScattered(
                 glm::i32vec3 npos = grid_pos + glm::i32vec3 { dx, dy, dz };
                 int grid_index = gridIndex3Dto1D(npos.x, npos.y, npos.z, gridResolution);
                 if (grid_index >= 0 && grid_index < num_grids) {
-                    int start = particleArrayIndices[gridCellStartIndices[grid_index]];
-                    int end = particleArrayIndices[gridCellEndIndices[grid_index]];
+                    int start = gridCellStartIndices[grid_index];
+                    int end = gridCellEndIndices[grid_index];
 
-                    for (int i = start; i <= end; ++i) {
+                    for (int j = start; j < end; ++j) {
+                        int i = particleArrayIndices[j];
                         if (i != index) {
                             float dist = glm::distance(pos[i], pos[index]);
                             if (dist < rule1Distance) {
@@ -557,29 +534,20 @@ void Boids::stepSimulationScatteredGrid(float dt) {
   // - Perform velocity updates using neighbor search
   // - Update positions
   // - Ping-pong buffers as needed
-
     dim3 block_dim_obj((numObjects + blockSize - 1) / blockSize);
+
     kernComputeIndices KERN_PARAM(block_dim_obj, blockSize) 
         (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos, dev_particleArrayIndices, dev_particleGridIndices);
     
     // sort (group) particles by grid index
     thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
 
-    //std::unique_ptr<int[]>intKeys{ new int[200] };
-    //std::unique_ptr<int[]>intValues{ new int[200] };
-    //cudaMemcpy(intKeys.get(), dev_particleGridIndices, sizeof(int) * 200, cudaMemcpyDeviceToHost);
-    //cudaMemcpy(intValues.get(), dev_particleArrayIndices, sizeof(int) * 200, cudaMemcpyDeviceToHost);
-    //std::cout << "fuck your mom.: " << std::endl;
-    //for (int i = 0; i < 200; i++) {
-    //    std::cout << "  key: " << intKeys[i];
-    //    std::cout << " value: " << intValues[i] << std::endl;
-    //}
-    //checkCUDAErrorWithLine("memcpy back failed!");
-
+    dim3 block_dim_grid((gridCellCount + blockSize - 1) / blockSize);
+    kernResetIntBuffer KERN_PARAM(block_dim_grid, blockSize) (gridCellCount, dev_gridCellStartIndices, -1);
+    kernResetIntBuffer KERN_PARAM(block_dim_grid, blockSize) (gridCellCount, dev_gridCellEndIndices, -1);
 
     // identify start and end
-    dim3 thread_dim_grid(gridSideCount, gridSideCount, gridSideCount);
-    kernIdentifyCellStartEnd KERN_PARAM(1, thread_dim_grid) 
+    kernIdentifyCellStartEnd KERN_PARAM(block_dim_obj, blockSize)
         (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 
     // do velocity update
