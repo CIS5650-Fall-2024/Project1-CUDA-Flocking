@@ -176,7 +176,7 @@ void Boids::initSimulation(int N) {
   dev_thrust_particleArrayIndices = thrust::device_ptr<int>(dev_particleArrayIndices);
   dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
 
-  thrust::sequence(dev_thrust_particleArrayIndices, dev_thrust_particleArrayIndices + numObjects);
+  //thrust::sequence(dev_thrust_particleArrayIndices, dev_thrust_particleArrayIndices + numObjects);
 
   //for (int i = 0; i < N; ++i) {
   //  std::cout << dev_thrust_particleArrayIndices[i];
@@ -368,12 +368,12 @@ __global__ void kernComputeIndices(int N, int gridResolution,
   if (index >= N) {
     return;
   }
-  // index is for indices array, NOT pos array, which is why we need pos[indices[index]]
-  glm::vec3 boidPos = pos[indices[index]]; 
+  glm::vec3 boidPos = pos[index]; 
 
   glm::vec3 gridPos = glm::floor((boidPos - gridMin) * inverseCellWidth);
   int gridIndex = gridIndex3Dto1D((int) gridPos.x, (int) gridPos.y, (int) gridPos.z, gridResolution);
 
+  indices[index] = index;
   gridIndices[index] = gridIndex;
 }
 
@@ -424,6 +424,26 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   // - Access each boid in the cell and compute velocity change from
   //   the boids rules, if this boid is within the neighborhood distance.
   // - Clamp the speed change before putting the new speed in vel2
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if (index < N) {
+    return;
+  }
+
+  glm::vec3 boidPos = pos[index];
+  glm::vec3 gridPos = glm::floor((boidPos - gridMin) * inverseCellWidth);
+  int gridX = gridPos.x;
+  int gridY = gridPos.y;
+  int gridZ = gridPos.z;
+  // Get neighbouring grid cells
+  // TODO: check 8 cells instead of 26
+  //for (int x = imax(gridX - 1, 0); x < imin(gridX + 1, gridResolution - 1); ++x) {
+  //  for (int y = imax(gridY - 1, 0); y < imin(gridY + 1, gridResolution - 1); ++y) {
+  //    for (int z = imax(gridZ - 1, 0); z < imin(gridZ + 1, gridResolution - 1); ++z) {
+  //      int gridPos = grid3D
+  //    }
+  //  }
+  //}
+  
 }
 
 __global__ void kernUpdateVelNeighborSearchCoherent(
@@ -482,15 +502,15 @@ void Boids::stepSimulationScatteredGrid(float dt) {
   //for (int i = 0; i < N; ++i) {
   //  std::cout << "boid #: " << dev_thrust_particleArrayIndices[i] << "is inside cell: " << dev_thrust_particleGridIndices[i] << std::endl;
   //}
-  
+
   thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + N, dev_thrust_particleArrayIndices);
   
-  //std::cout << "AFTER SORTING-------------------------------------------" << std::endl;
-  //for (int i = 0; i < N; ++i) {
-  //  std::cout << "boid #: " << dev_thrust_particleArrayIndices[i] << "is inside cell: " << dev_thrust_particleGridIndices[i] << std::endl;
-  //}
+  std::cout << "AFTER SORTING-------------------------------------------" << std::endl;
+  for (int i = 0; i < N; ++i) {
+    std::cout << "boid #: " << dev_thrust_particleArrayIndices[i] << "is inside cell: " << dev_thrust_particleGridIndices[i] << std::endl;
+  }
 
-  kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (N, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
+  //kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (N, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
