@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include "utilityCore.hpp"
 #include "kernel.h"
+#include <thrust/sequence.h>
 
 // LOOK-2.1 potentially useful for doing grid-based neighbor search
 #ifndef imax
@@ -164,11 +165,23 @@ void Boids::initSimulation(int N) {
   gridCellCount = gridSideCount * gridSideCount * gridSideCount;
   gridInverseCellWidth = 1.0f / gridCellWidth;
   float halfGridWidth = gridCellWidth * halfSideCount;
-  gridMinimum.x -= halfGridWidth;
+  gridMinimum.x -= halfGridWidth; // does this mean gridMinimum is already "auto-initialized" to (0, 0, 0)? 
   gridMinimum.y -= halfGridWidth;
   gridMinimum.z -= halfGridWidth;
 
   // TODO-2.1 TODO-2.3 - Allocate additional buffers here.
+  cudaMalloc((void**) &dev_particleArrayIndices, N * sizeof(int));
+  cudaMalloc((void**) &dev_particleGridIndices, N * sizeof(int));
+
+  dev_thrust_particleArrayIndices = thrust::device_ptr<int>(dev_particleArrayIndices);
+  dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
+
+  thrust::sequence(dev_thrust_particleArrayIndices, dev_thrust_particleArrayIndices + numObjects);
+
+  //for (int i = 0; i < N; ++i) {
+  //  std::cout << dev_thrust_particleArrayIndices[i];
+  //}
+
   cudaDeviceSynchronize();
 }
 
@@ -350,6 +363,18 @@ __global__ void kernComputeIndices(int N, int gridResolution,
     // - Label each boid with the index of its grid cell.
     // - Set up a parallel array of integer indices as pointers to the actual
     //   boid data in pos and vel1/vel2
+
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if (index >= N) {
+    return;
+  }
+  // index is for indices array, NOT pos array, which is why we need pos[indices[index]]
+  glm::vec3 boidPos = pos[indices[index]]; 
+
+  glm::vec3 gridPos = glm::floor((boidPos - gridMin) * inverseCellWidth);
+  int gridIndex = gridIndex3Dto1D((int) gridPos.x, (int) gridPos.y, (int) gridPos.z, gridResolution);
+
+  gridIndices[index] = gridIndex;
 }
 
 // LOOK-2.1 Consider how this could be useful for indicating that a cell
@@ -433,6 +458,21 @@ void Boids::stepSimulationScatteredGrid(float dt) {
   // - Perform velocity updates using neighbor search
   // - Update positions
   // - Ping-pong buffers as needed
+  int N = numObjects;
+  dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+
+  kernComputeIndices<<<fullBlocksPerGrid, blockSize>>>(N, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos, dev_particleArrayIndices, dev_particleGridIndices);
+  
+  //for (int i = 0; i < N; ++i) {
+  //  std::cout << "boid #: " << dev_thrust_particleArrayIndices[i] << "is inside cell: " << dev_thrust_particleGridIndices[i] << std::endl;
+  //}
+  
+  thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + N, dev_thrust_particleArrayIndices);
+  
+  //std::cout << "AFTER SORTING-------------------------------------------" << std::endl;
+  //for (int i = 0; i < N; ++i) {
+  //  std::cout << "boid #: " << dev_thrust_particleArrayIndices[i] << "is inside cell: " << dev_thrust_particleGridIndices[i] << std::endl;
+  //}
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
@@ -459,6 +499,8 @@ void Boids::endSimulation() {
   cudaFree(dev_pos);
 
   // TODO-2.1 TODO-2.3 - Free any additional buffers here.
+  cudaFree(dev_particleArrayIndices);
+  cudaFree(dev_particleGridIndices);
 }
 
 void Boids::unitTest() {
