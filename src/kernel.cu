@@ -392,6 +392,22 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
   // Identify the start point of each cell in the gridIndices array.
   // This is basically a parallel unrolling of a loop that goes
   // "this index doesn't match the one before it, must be a new cell!"
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if (index < N) {
+    return;
+  }
+
+  int gridIndex = particleGridIndices[index];
+
+  if (index == 0 || particleGridIndices[index - 1] != particleGridIndices[index]) {
+    // then index is a start index
+    gridCellStartIndices[gridIndex] = index;
+  }
+
+  if (index == N - 1 || particleGridIndices[index] != particleGridIndices[index + 1]) {
+    // then index is an end index
+    gridCellEndIndices[gridIndex] = index;
+  }
 }
 
 __global__ void kernUpdateVelNeighborSearchScattered(
@@ -473,6 +489,8 @@ void Boids::stepSimulationScatteredGrid(float dt) {
   //for (int i = 0; i < N; ++i) {
   //  std::cout << "boid #: " << dev_thrust_particleArrayIndices[i] << "is inside cell: " << dev_thrust_particleGridIndices[i] << std::endl;
   //}
+
+  kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (N, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
