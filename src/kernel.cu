@@ -387,6 +387,7 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
   // Here we can use atomic operations to "push" the range boundary
   // Initial values need to be set in advance to make empty cells easy to identify
   // after this step
+  // Of course, binary search applies, but I think atomic min/max is more straightforward
   atomicMin(gridCellStartIndices + gridIndex, index);
   atomicMax(gridCellEndIndices + gridIndex, index);
 }
@@ -446,14 +447,12 @@ __global__ void kernUpdateVelNeighborSearchScattered(
         }
         int gridIndex = gridIndex3Dto1D(coord, gridResolution);
         int gridStart = gridCellStartIndices[gridIndex];
-        int gridEnd = gridCellEndIndices[gridEnd];
+        int gridEnd = gridCellEndIndices[gridIndex];
 
-        // Suggesting an empty cell
         if (gridStart > gridEnd) {
           continue;
         }
 
-        // Well, I don't really like many loops
         for (int s = gridStart; s <= gridEnd; s++) {
           int boidIndex = particleArrayIndices[s];
           if (boidIndex == index) {
@@ -535,6 +534,31 @@ void Boids::stepSimulationScatteredGrid(float dt) {
   // - Perform velocity updates using neighbor search
   // - Update positions
   // - Ping-pong buffers as needed
+
+  int blockNumBoid = (numObjects + blockSize - 1) / blockSize;
+  int blockNumGrid = (gridCellCount + blockSize - 1) / blockSize;
+
+  kernComputeIndices<<<blockNumBoid, blockSize>>>(numObjects, gridSideCount, gridMinimum,
+    gridInverseCellWidth, dev_pos, dev_particleArrayIndices, dev_particleGridIndices);
+
+  thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects,
+    dev_thrust_particleArrayIndices);
+
+  kernResetIntBuffer<<<blockNumGrid, blockSize>>>(gridCellCount, dev_gridCellStartIndices,
+    numObjects);
+  kernResetIntBuffer<<<blockNumGrid, blockSize>>>(gridCellCount, dev_gridCellEndIndices, -1);
+
+  kernIdentifyCellStartEnd<<<blockNumBoid, blockSize>>>(numObjects, dev_particleGridIndices,
+    dev_gridCellStartIndices, dev_gridCellEndIndices);
+
+  kernUpdateVelNeighborSearchScattered<<<blockNumBoid, blockSize>>>(numObjects, gridSideCount,
+    gridMinimum, gridInverseCellWidth, gridCellWidth,
+    dev_gridCellStartIndices, dev_gridCellEndIndices, dev_particleArrayIndices,
+    dev_pos, dev_vel1, dev_vel2);
+
+  kernUpdatePos<<<blockNumBoid, blockSize>>>(numObjects, dt, dev_pos, dev_vel2);
+
+  std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
