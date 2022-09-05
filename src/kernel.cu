@@ -224,16 +224,50 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 ******************/
 
 /**
-* LOOK-1.2 You can use this as a helper for kernUpdateVelocityBruteForce.
+* TODO-1.2 You can use this as a helper for kernUpdateVelocityBruteForce.
 * __device__ code can be called from a __global__ context
 * Compute the new velocity on the body with index `iSelf` due to the `N` boids
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+    glm::vec3 perceivedCenter = glm::vec3(0, 0, 0);
+    glm::vec3 c = glm::vec3(0, 0, 0);
+    glm::vec3 perceivedVelocity = glm::vec3(0, 0, 0);
+
+    int numOfNeighborsP = 0;
+    int numOfNeighborsV = 0;
+    for (int i = 0; i < N; i++) {
+        if (i != iSelf) {
+            auto dist = glm::distance(pos[i], pos[iSelf]);
+            if (dist < rule1Distance) {
+                perceivedCenter += pos[i];
+                numOfNeighborsP++;
+            }
+            if (dist < rule2Distance) {
+                c -= pos[i] - pos[iSelf];
+            }
+            if (dist < rule3Distance) {
+                perceivedVelocity += vel[i];
+                numOfNeighborsV++;
+            }
+        }
+    }
+
+    perceivedCenter /= numOfNeighborsP;
+    perceivedVelocity /= numOfNeighborsV;
+
+    glm::vec3 rule1Vel = (perceivedCenter - pos[iSelf]) * rule1Scale;
+    glm::vec3 rule2Vel = c * rule2Scale;
+    glm::vec3 rule3Vel = perceivedVelocity * rule3Scale;
+
   // Rule 2: boids try to stay a distance d away from each other
   // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+    
+    auto totalVel = vel[iSelf] + rule1Vel + rule2Vel + rule3Vel;
+
+    return (glm::length(totalVel) <= maxSpeed ? totalVel : glm::normalize(totalVel) * maxSpeed);
+  //return glm::vec3(0.1f, 0.0f, 0.0f);
 }
 
 /**
@@ -245,6 +279,11 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    if (index >= N) {
+        return;
+    }
+    vel2[index] = computeVelocityChange(N, index, pos, vel1);
 }
 
 /**
@@ -348,7 +387,13 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 */
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
-  // TODO-1.2 ping-pong the velocity buffers
+    dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+    kernUpdateVelocityBruteForce <<<fullBlocksPerGrid, blockSize >>>(numObjects, dev_pos, dev_vel1, dev_vel2);
+    kernUpdatePos <<<fullBlocksPerGrid, blockSize >>> (numObjects, dt, dev_pos, dev_vel2);
+    
+  // TODO-1.2 ping-pong the velocity 
+    std::swap(dev_vel1, dev_vel2);
+
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
@@ -404,15 +449,15 @@ void Boids::unitTest() {
   std::unique_ptr<int[]>intValues{ new int[N] };
 
   intKeys[0] = 0; intValues[0] = 0;
+  intKeys[6] = 2; intValues[6] = 6;
+  intKeys[7] = 0; intValues[7] = 7;
+  intKeys[8] = 5; intValues[8] = 8;
+  intKeys[9] = 6; intValues[9] = 9;
   intKeys[1] = 1; intValues[1] = 1;
   intKeys[2] = 0; intValues[2] = 2;
   intKeys[3] = 3; intValues[3] = 3;
   intKeys[4] = 0; intValues[4] = 4;
   intKeys[5] = 2; intValues[5] = 5;
-  intKeys[6] = 2; intValues[6] = 6;
-  intKeys[7] = 0; intValues[7] = 7;
-  intKeys[8] = 5; intValues[8] = 8;
-  intKeys[9] = 6; intValues[9] = 9;
 
   cudaMalloc((void**)&dev_intKeys, N * sizeof(int));
   checkCUDAErrorWithLine("cudaMalloc dev_intKeys failed!");
