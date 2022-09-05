@@ -38,7 +38,7 @@ const float zFar = 10.0f;
 // LOOK-1.2: for high DPI displays, you may want to double these settings.
 int width = 1920;
 int height = 1080;
-int pointSize = 4;
+int pointSize = 3;
 
 // For camera controls
 bool leftMousePressed = false;
