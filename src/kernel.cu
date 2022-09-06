@@ -401,7 +401,7 @@ void Boids::stepSimulationNaive(float dt) {
     dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
     kernUpdateVelocityBruteForce << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_pos,
         dev_vel1, dev_vel2);
-    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, float dt, dev_pos, dev_vel2);
+    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel2);
   // TODO-1.2 ping-pong the velocity buffers
     glm::vec3* tmp = dev_vel1;
     dev_vel1 = dev_vel2;
