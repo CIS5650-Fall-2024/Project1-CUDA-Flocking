@@ -18,8 +18,10 @@
 #define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+#define N_FOR_VIS 5000
 const float DT = 0.2f;
+
+#include "profiling.h"
 
 /**
 * C main function.
@@ -220,6 +222,10 @@ void initShaders(GLuint * program) {
     Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
 
+#ifdef PROFILING
+    double average_fps = 0;
+#endif // PROFILING
+
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
 
@@ -231,6 +237,23 @@ void initShaders(GLuint * program) {
         timebase = time;
         frame = 0;
       }
+
+#ifdef PROFILING
+      average_fps += fps;
+      if (time > 10.0) {
+          if (frame) {
+              average_fps /= frame;
+              std::fstream fout(SAVE_FILE_NAME, std::fstream::in | std::fstream::out | std::fstream::app);
+              fout << "ave_fps,num_boids,blocksz";
+              // output cvs
+              fout << average_fps << ',' << N_FOR_VIS << ',' << blocksize << std::endl;
+          } else {
+              assert(!"frame taking longer than 10 seconds");
+          }
+          break;
+      }
+#endif // PROFILING
+
 
       runCUDA();
 

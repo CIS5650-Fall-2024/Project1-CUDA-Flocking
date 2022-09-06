@@ -8,8 +8,11 @@
 #define KERN_PARAM(x,y) <<< x,y >>>
 #endif
 
-// convenience macros
-#define ALLOC(name, size) cudaMalloc((void**)&name, size * sizeof(*name)); checkCUDAErrorWithLine("cudaMalloc" ## #name ## "failed!")
+// convenience macro
+#define ALLOC(name, size) if(cudaMalloc((void**)&name, size * sizeof(*name)) != cudaSuccess) checkCUDAErrorWithLine("cudaMalloc" ## #name ## "failed!")
+#define FREE(name) if(cudaFree(name) != cudaSuccess) checkCUDAErrorWithLine("cudaFree" ## #name ## "failed!")
+
+// profiling
 
 #include <stdio.h>
 #include <cuda.h>
@@ -65,6 +68,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
+#include "profiling.h"
 
 /***********************************************
 * Kernel state (pointers are device pointers) *
@@ -710,18 +714,18 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 }
 
 void Boids::endSimulation() {
-  cudaFree(dev_vel1);
-  cudaFree(dev_vel2);
-  cudaFree(dev_pos);
+  FREE(dev_vel1);
+  FREE(dev_vel2);
+  FREE(dev_pos);
 
   // TODO-2.1 TODO-2.3 - Free any additional buffers here.
-  cudaFree(dev_particleArrayIndices);
-  cudaFree(dev_particleGridIndices);
-  cudaFree(dev_gridCellStartIndices);
-  cudaFree(dev_gridCellEndIndices);
+  FREE(dev_particleArrayIndices);
+  FREE(dev_particleGridIndices);
+  FREE(dev_gridCellStartIndices);
+  FREE(dev_gridCellEndIndices);
   // 2.3
-  cudaFree(dev_coherentPos);
-  cudaFree(dev_coherentVel2);
+  FREE(dev_coherentPos);
+  FREE(dev_coherentVel2);
 }
 
 void Boids::unitTest() {
