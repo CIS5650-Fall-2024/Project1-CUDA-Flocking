@@ -114,7 +114,7 @@ bool init(int argc, char **argv) {
   updateCamera();
 
   initShaders(program);
-
+  
   glEnable(GL_DEPTH_TEST);
 
   return true;
