@@ -63,7 +63,7 @@ In the Boids flocking simulation, particles representing birds or fish
 1. cohesion - boids move towards the perceived center of mass of their neighbors
 2. separation - boids avoid getting to close to their neighbors
 3. alignment - boids generally try to move with the same direction and speed as
-their neighbors
+   their neighbors
 
 These three rules specify a boid's velocity change in a timestep.
 At every timestep, a boid thus has to look at each of its neighboring boids
@@ -127,6 +127,7 @@ function rule3(Boid boid)
     return perceived_velocity * rule3Scale
 end
 ```
+
 Based on [Conard Parker's notes](http://www.vergenet.net/~conrad/boids/pseudocode.html) with slight adaptations. For the purposes of an interesting simulation,
 we will say that two boids only influence each other according if they are
 within a certain **neighborhood distance** of each other.
@@ -141,10 +142,13 @@ For an idea of how the simulation "should" look in 3D,
 **Please Note** that our pseudocode, our 2D implementation, and our reference code (from which we derived the parameters that ship with the basecode) differ from Conrad Parker's notes in Rule 3 - our references do not subtract the boid's own velocity from the perceived velocity:
 
 Our pseuodocode:
+
 ```
     return perceived_velocity * rule3Scale
 ```
+
 Conrad Parker's notes:
+
 ```
     RETURN (pvJ - bJ.velocity) / 8
 ```
@@ -159,12 +163,12 @@ However, since the purpose of this assignment is to introduce you to CUDA, we re
 
 * `src/main.cpp`: Performs all of the CUDA/OpenGL setup and OpenGL
   visualization.
+
 * `src/kernel.cu`: CUDA device functions, state, kernels, and CPU functions for
   kernel invocations. In place of a unit testing/sandbox framework, there is
   space in here for individually running your kernels and getting the output
   back from the GPU before running the actual simulation. PLEASE make use of
   this in Part 2 to individually test your kernels.
-
 1. Search the code for `TODO-1.2` and `LOOK-1.2`.
    * `src/kernel.cu`: Use what you learned in the first lectures to
      figure out how to resolve these X Part 1 TODOs.
@@ -205,7 +209,7 @@ because:
 
 1. We don't have resizeable arrays on the GPU
 2. Naively parallelizing the iteration may lead to race conditions, where two
-particles need to be written into the same bucket on the same clock cycle.
+   particles need to be written into the same bucket on the same clock cycle.
 
 Instead, we will construct the uniform grid by sorting. If we label each boid
 with an index representing its enclosing cell and then sort the list of
@@ -227,13 +231,14 @@ homework, we will use the value/key sort built into **Thrust**. See
 `Boids::unitTest` in `kernel.cu` for an example of how to use this.
 
 Your uniform grid will probably look something like this in GPU memory:
+
 - `dev_particleArrayIndices` - buffer containing a pointer for each boid to its
-data in dev_pos and dev_vel1 and dev_vel2
+  data in dev_pos and dev_vel1 and dev_vel2
 - `dev_particleGridIndices` - buffer containing the grid index of each boid
 - `dev_gridCellStartIndices` - buffer containing a pointer for each cell to the
-beginning of its data in `dev_particleArrayIndices`
+  beginning of its data in `dev_particleArrayIndices`
 - `dev_gridCellEndIndices` - buffer containing a pointer for each cell to the
-end of its data in `dev_particleArrayIndices`.
+  end of its data in `dev_particleArrayIndices`.
 
 Here the term `pointer` when used with buffers is largely interchangeable with
 the term `index`, however, you will effectively be using array indices as
@@ -245,6 +250,7 @@ You can toggle between different timestep update modes using the defines in
 `main.cpp`.
 
 ### 2.2 Play around some more
+
 Compare your uniform grid velocity update to your naive velocity update.
 In the typical case, the uniform grid version should be considerably faster.
 Try to push the limits of how many boids you can simulate.
@@ -252,6 +258,7 @@ Try to push the limits of how many boids you can simulate.
 Change the cell width of the uniform grid to be the neighborhood distance, instead of twice the neighborhood distance. Now, 27 neighboring cells will need to be checked for intersection. Does this increase or decrease the efficiency of the flocking?
 
 ### 2.3 Cutting out the middleman
+
 Consider the uniform grid neighbor search outlined in 2.1: pointers to boids in
 a single cell are contiguous in memory, but the boid data itself (velocities and
 positions) is scattered all over the place. Try rearranging the boid data
@@ -266,6 +273,7 @@ See the TODOs for Part 2.3. This should involve a slightly modified copy of
 your code from 2.1.
 
 ## Part 3: Performance Analysis
+
 For this project, we will guide you through your performance analysis with some
 basic questions. In the future, you will guide your own performance analysis -
 but these simple questions will always be critical to answer. In general, we
@@ -277,9 +285,10 @@ metric, but adding your own `cudaTimer`s, etc., will allow you to do more
 fine-grained benchmarking of various parts of your code.
 
 REMEMBER:
+
 * Do your performance testing in `Release` mode!
 * Turn off Vertical Sync in Nvidia Control Panel:
-![Unlock FPS](images/UnlockFPS.png)
+  ![Unlock FPS](images/UnlockFPS.png)
 * Performance should always be measured relative to some baseline when
   possible. A GPU can make your program faster - but by how much?
 * If a change impacts performance, show a comparison. Describe your changes.
@@ -289,6 +298,7 @@ REMEMBER:
 ### Questions
 
 There are two ways to measure performance:
+
 * Disable visualization so that the framerate reported will be for the the
   simulation only, and not be limited to 60 fps. This way, the framerate
   reported in the window title will be useful.
@@ -304,27 +314,26 @@ hypotheses and insights.
 **Answer these:**
 
 * For each implementation, how does changing the number of boids affect
-performance? Why do you think this is?
+  performance? Why do you think this is?
 * For each implementation, how does changing the block count and block size
-affect performance? Why do you think this is?
+  affect performance? Why do you think this is?
 * For the coherent uniform grid: did you experience any performance improvements
-with the more coherent uniform grid? Was this the outcome you expected?
-Why or why not?
+  with the more coherent uniform grid? Was this the outcome you expected?
+  Why or why not?
 * Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
-Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
-that 27-cell is slower simply because there are more cells to check!
+  Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
+  that 27-cell is slower simply because there are more cells to check!
 
 **NOTE: Nsight performance analysis tools *cannot* presently be used on the lab
 computers, as they require administrative access.** If you do not have access
 to a CUDA-capable computer, the lab computers still allow you to do timing
 mesasurements! However, the tools are very useful for performance debugging.
 
-
 ## Part 4: Write-up
 
 1. Take a screenshot of the boids **and** use a gif tool like [licecap](http://www.cockos.com/licecap/) to record an animations of the boids with a fixed camera.
-Put this at the top of your README.md. Take a look at [How to make an attractive
-GitHub repo](https://github.com/pjcozzi/Articles/blob/master/CIS565/GitHubRepo/README.md).
+   Put this at the top of your README.md. Take a look at [How to make an attractive
+   GitHub repo](https://github.com/pjcozzi/Articles/blob/master/CIS565/GitHubRepo/README.md).
 2. Add your performance analysis. Graphs to include:
 - Framerate change with increasing # of boids for naive, scattered uniform grid, and coherent uniform grid (with and without visualization)
 - Framerate change with increasing block size
@@ -340,26 +349,26 @@ The template of the comment section of your pull request is attached below, you 
 
 * [Repo Link](https://link-to-your-repo)
 * (Briefly) Mentions features that you've completed. Especially those bells and whistles you want to highlight
-    * Feature 0
-    * Feature 1
-    * ...
+  * Feature 0
+  * Feature 1
+  * ...
 * Feedback on the project itself, if any.
-
 
 And you're done!
 
 ## Tips
+
 - If your simulation crashes before launch, use
-`checkCUDAErrorWithLine("message")` after CUDA invocations
+  `checkCUDAErrorWithLine("message")` after CUDA invocations
 - `ctrl + f5` in Visual Studio will launch the program but won't let the window
-close if the program crashes. This way you can see any `checkCUDAErrorWithLine`
-output.
+  close if the program crashes. This way you can see any `checkCUDAErrorWithLine`
+  output.
 - For debugging purposes, you can transfer data to and from the GPU.
-See `Boids::unitTest` in `kernel.cu` for an example of how to use this.
+  See `Boids::unitTest` in `kernel.cu` for an example of how to use this.
 - For high DPI displays like 4K monitors or the Macbook Pro with Retina Display, you might want to double the rendering resolution and point size. See `main.hpp`.
 - Your README.md will be done in github markdown. You can find a [cheatsheet here](https://guides.github.com/pdfs/markdown-cheatsheet-online.pdf). There is
-also a [live preview plugin](https://atom.io/packages/markdown-preview) for the
-[atom text editor](https://atom.io/) from github. The same for [VS Code](https://www.visualstudio.com/en-us/products/code-vs.aspx)
+  also a [live preview plugin](https://atom.io/packages/markdown-preview) for the
+  [atom text editor](https://atom.io/) from github. The same for [VS Code](https://www.visualstudio.com/en-us/products/code-vs.aspx)
 - If your framerate is capped at 60fps, [disable V-sync](http://support.enmasse.com/tera/enable-v-sync-to-fix-graphics-issues-screen-tearing)
 
 ## Optional Extra Credit
