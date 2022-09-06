@@ -243,8 +243,13 @@ void initShaders(GLuint * program) {
       if (time > 10.0) {
           if (frame) {
               average_fps /= frame;
+
+              std::ifstream tmp(SAVE_FILE_NAME);
               std::fstream fout(SAVE_FILE_NAME, std::fstream::in | std::fstream::out | std::fstream::app);
-              fout << "ave_fps,num_boids,blocksz";
+
+              if (!tmp.good()) {
+                  fout << "ave_fps,num_boids,blocksz\n";
+              }
               // output cvs
               fout << average_fps << ',' << N_FOR_VIS << ',' << blocksize << std::endl;
           } else {
