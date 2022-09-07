@@ -38,7 +38,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 128
+#define blockSize 256
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
@@ -437,7 +437,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < 2; j++) {
       for (int k = 0; k < 2; k++) {
-        glm::ivec3 coord = startUnit + glm::ivec3(i, j, k);
+        glm::ivec3 coord = startUnit + glm::ivec3(k, j, i);
 
         if (coord.x < 0 || coord.x >= gridResolution ||
           coord.y < 0 || coord.y >= gridResolution ||
@@ -541,7 +541,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < 2; j++) {
       for (int k = 0; k < 2; k++) {
-        glm::ivec3 coord = startUnit + glm::ivec3(i, j, k);
+        glm::ivec3 coord = startUnit + glm::ivec3(k, j, i);
 
         if (coord.x < 0 || coord.x >= gridResolution ||
           coord.y < 0 || coord.y >= gridResolution ||

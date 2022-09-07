@@ -15,10 +15,10 @@
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
 #define UNIFORM_GRID 1
-#define COHERENT_GRID 1
+#define COHERENT_GRID 0
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 100000;
+const int N_FOR_VIS = 512000;
 const float DT = 0.2f;
 
 /**
@@ -42,6 +42,10 @@ int main(int argc, char* argv[]) {
 
 std::string deviceName;
 GLFWwindow *window;
+
+double avgExecTime = 0.0;
+double expExecTime = 0.0;
+double frameCount = 0.0;
 
 /**
 * Initialization of CUDA and GLFW.
@@ -195,6 +199,14 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertPositions, boidVBO_positions);
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
+    // Use cudaEvent and cudaEventElapsedTime to get the exact time of
+    // executing one step
+    cudaEvent_t start, end;
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
+
+    cudaEventRecord(start);
+
     // execute the kernel
     #if UNIFORM_GRID && COHERENT_GRID
     Boids::stepSimulationCoherentGrid(DT);
@@ -203,6 +215,15 @@ void initShaders(GLuint * program) {
     #else
     Boids::stepSimulationNaive(DT);
     #endif
+
+    cudaEventRecord(end);
+    cudaEventSynchronize(end);
+
+    float execTime;
+    cudaEventElapsedTime(&execTime, start, end);
+
+    avgExecTime = (avgExecTime * (frameCount - 1.0) + execTime) / frameCount;
+    expExecTime = glm::mix<double>(expExecTime, execTime, 0.001);
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
@@ -224,6 +245,7 @@ void initShaders(GLuint * program) {
       glfwPollEvents();
 
       frame++;
+      frameCount += 1.0;
       double time = glfwGetTime();
 
       if (time - timebase > 1.0) {
@@ -234,11 +256,14 @@ void initShaders(GLuint * program) {
 
       runCUDA();
 
+      //expRenderTime = glm::mix(expRenderTime, renderTime, 0.001);
+
       std::ostringstream ss;
       ss << "[";
       ss.precision(1);
-      ss << std::fixed << fps;
-      ss << " fps] " << deviceName;
+      ss << std::fixed << fps << "fps";
+      ss << ", " << std::setprecision(3) << avgExecTime << "ms]";
+      ss << deviceName;
       ss << " Boid count: " << N_FOR_VIS;
       glfwSetWindowTitle(window, ss.str().c_str());
 
