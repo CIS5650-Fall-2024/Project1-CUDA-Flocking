@@ -231,9 +231,42 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+  
+    glm::vec3 posSelf = pos[iSelf];
+    glm::vec3 perceived_center = glm::vec3(0);
+    int neighbors = 0;
+    for (int b = 0; b < N; b++){
+        if (b != iSelf && glm::distance(pos[b], posSelf) < rule1Distance){
+            perceived_center += pos[b];
+            neighbors++;
+        }
+    }
+    perceived_center /= neighbors;
+    glm::vec3 v1 = (perceived_center - posSelf) * rule1Scale;
   // Rule 2: boids try to stay a distance d away from each other
+
+    glm::vec3 c = glm::vec3(0);
+
+    for (int b = 0; b < N; b++) {
+        if (b != iSelf && glm::distance(pos[b], posSelf) < rule2Distance) {
+            c -= pos[b] - posSelf;
+        }
+    }
+    glm::vec3 v2 = c * rule2Scale;
+
   // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 perceived_velocity = glm::vec3(0);
+    neighbors = 0;
+    for (int b = 0; b < N; b++) {
+        if (b != iSelf && glm::distance(pos[b], posSelf) < rule3Distance) {
+            perceived_velocity += vel[b];
+            neighbors++;
+        }
+    }
+    perceived_velocity /= neighbors;
+    glm::vec3 v3 = perceived_velocity * rule3Scale;
+
+    return v1 + v2 + v3;
 }
 
 /**
@@ -243,8 +276,11 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   glm::vec3 *vel1, glm::vec3 *vel2) {
   // Compute a new velocity based on pos and vel1
+  int index = threadIdx.x + (blockIdx.x * blockDim.x);
+  glm::vec3 new_vel = computeVelocityChange(N, index, pos, vel1);
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+  vel2[index] = glm::clamp(new_vel + vel1[index], 0.0f, maxSpeed);
 }
 
 /**
