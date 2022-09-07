@@ -351,13 +351,16 @@ __global__ void kernComputeIndices(int N, int gridResolution,
     // - Label each boid with the index of its grid cell.
     // - Set up a parallel array of integer indices as pointers to the actual
     //   boid data in pos and vel1/vel2
-    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (index >= N) {
         return;
     }
     glm::vec3 bpos = pos[index];
     indices[index] = index;
-
+    glm::vec3 dist = bpos - gridMin;    // dist from current boid pos to gridMin
+    int gridIndex = gridIndex3Dto1D(glm::floor(dist.x * inverseCellWidth), glm::floor(dist.y * inverseCellWidth),
+        glm::floor(dist.z * inverseCellWidth), gridResolution);
+    gridIndices[index] = gridIndex;
 }
 
 // LOOK-2.1 Consider how this could be useful for indicating that a cell
@@ -375,6 +378,26 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
   // Identify the start point of each cell in the gridIndices array.
   // This is basically a parallel unrolling of a loop that goes
   // "this index doesn't match the one before it, must be a new cell!"
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index >= N) {
+        return;
+    }
+    if (index == 0)
+    {
+        gridCellStartIndices[0] = 0;
+    }
+    else if (index == N - 1)
+    {
+        gridCellEndIndices[N - 1] = N - 1;
+    }  
+    else    // Between 0 to N
+    {
+        if (particleGridIndices[index - 1] != particleGridIndices[index])
+        {
+            gridCellStartIndices[particleGridIndices[index]] = index;
+            gridCellEndIndices[particleGridIndices[index - 1]] = index - 1;
+        }
+    }
 }
 
 __global__ void kernUpdateVelNeighborSearchScattered(
@@ -391,6 +414,11 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   // - Access each boid in the cell and compute velocity change from
   //   the boids rules, if this boid is within the neighborhood distance.
   // - Clamp the speed change before putting the new speed in vel2
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index >= N) {
+        return;
+    }
+
 }
 
 __global__ void kernUpdateVelNeighborSearchCoherent(
