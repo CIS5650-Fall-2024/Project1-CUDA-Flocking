@@ -14,11 +14,11 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
+#define UNIFORM_GRID 1
 #define COHERENT_GRID 0
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS = 50000;
 const float DT = 0.2f;
 unsigned int steps_in_run = 0;
 
@@ -26,7 +26,7 @@ unsigned int steps_in_run = 0;
 * C main function.
 */
 int main(int argc, char* argv[]) {
-	projectName = "565 CUDA Intro: Boids";
+	projectName = "565 CUDA Intro: Boids by Alex Fu";
 
 	if (init(argc, argv)) {
 		mainLoop();
@@ -66,7 +66,7 @@ bool init(int argc, char** argv) {
 	int minor = deviceProp.minor;
 
 	std::ostringstream ss;
-	ss << projectName << " [SM " << major << "." << minor << " " << deviceProp.name << "]";
+	ss << "[" << N_FOR_VIS << " boids] [SM " << major << "." << minor << " " << deviceProp.name << "]";
 	deviceName = ss.str();
 
 	// Window setup stuff
@@ -224,7 +224,7 @@ void mainLoop() {
 	int frameCount = 0;
 
 
-	Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
+	//Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
 						// your CUDA development setup is ready to go.
 
 	while (!glfwWindowShouldClose(window)) {
@@ -239,8 +239,8 @@ void mainLoop() {
 			refreshTimer = 0.f;
 			frameCount = 0;
 			std::ostringstream ss;
-			ss << "Project 1 - Alex Fu ";
-			ss << "[";
+			ss << projectName;
+			ss << " [";
 			ss.precision(1);
 			ss << std::fixed << fps;
 			ss << " fps] [";
