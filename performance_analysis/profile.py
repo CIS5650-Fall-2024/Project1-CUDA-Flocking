@@ -22,6 +22,8 @@ exe_cmd = [
 	"start",
 	"-Wait",
 	"-NoNewWindow",
+    "-WorkingDirectory",
+    "\"..\\build\\\"",
 	"-FilePath",
 	"\"..\\build\\cis565_boids.exe\""
 ]
