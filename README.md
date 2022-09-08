@@ -1,9 +1,8 @@
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture,
 Project 1 - Flocking**
 
-* (TODO) YOUR NAME HERE
-  * (TODO) [LinkedIn](), [personal website](), [twitter](), etc.
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* Evan S
+* Tested on: Zephyrus ROG G14 - Windows 11, Ryzen 5800HS @ 3.20GHz, RTX 3060 Notebook
 
 ### (TODO: Your README)
 
