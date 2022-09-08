@@ -260,21 +260,24 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     int neighborCountRule3 = 0;
 
     for (int idx = 0; idx < N; ++idx) {
+        if (idx == iSelf)
+            continue;
         glm::vec3 posOther = pos[idx];
         //if (iSelf == 1002) {
         //    printf("distance:                     %f\n", glm::distance(posSelf, posOther));
         //}
         // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-        if (idx != iSelf && glm::distance(posSelf, posOther) < rule1Distance) {
+        float distance = glm::distance(posSelf, posOther);
+        if (distance < rule1Distance) {
             perceivedCenter += posOther;
             neighborCountRule1++;
         }
         // Rule 2: boids try to stay a distance d away from each other
-        if (idx != iSelf && glm::distance(posSelf, posOther) < rule2Distance) {
+        if (distance < rule2Distance) {
             awayDist -= (posOther - posSelf);
         }
         // Rule 3: boids try to match the speed of surrounding boids
-        if (idx != iSelf || glm::distance(posSelf, posOther) < rule3Distance) {
+        if (distance < rule3Distance) {
             perceivedVel += vel[idx];
             neighborCountRule3++;
         }
