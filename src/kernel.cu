@@ -247,11 +247,14 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     glm::vec3 newVel1 = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 newVel2 = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
+    int neightborCount1 = 0;
+    int neightborCount2 = 0;
     for (int i = 0; i < N; i++) {
         float distance = glm::distance(pos[iSelf], pos[i]);
         if (i != iSelf) {
             // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
             if (distance < rule1Distance) {
+                neightborCount1++;
                 center += pos[i];
             }
             // Rule 2: boids try to stay a distance d away from each other
@@ -260,16 +263,22 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
             }
             // Rule 3: boids try to match the speed of surrounding boids
             if (distance < rule3Distance) {
+                neightborCount2++;
                 newVel2 += vel[i];
             }
         }
     }
-    center /= (N-1);
-    center -= pos[iSelf];
-    center *= rule1Scale;
+    if (neightborCount1 != 0) {
+      center /= neightborCount1;
+      center -= pos[iSelf];
+      center *= rule1Scale;
+    }
+    if (neightborCount2 != 0) {
+      newVel2 /= neightborCount2;
+      newVel2 *= rule3Scale;
+    }
     newVel1 *= rule2Scale;
-    newVel2 /= (N - 1);
-    newVel2 *= rule3Scale;
+    
     /*float x = pos[iSelf].x;
     float y = pos[iSelf].y;
     float z = pos[iSelf].z;
@@ -462,18 +471,24 @@ __global__ void kernUpdateVelNeighborSearchScattered(
             }
         }
     }
-    int gridIndices[8] = { gridCollection[0].x,gridCollection[0].y,gridCollection[0].z,gridCollection[0].w,
+    int gridIndices[8] = { gridCollection[0].x ,gridCollection[0].y,gridCollection[0].z,gridCollection[0].w,
         gridCollection[1].x,gridCollection[1].y,gridCollection[1].z,gridCollection[1].w };
+    for (int i = 0; i <gridIndices.size(); i++) {
+      gridIndices[i] += gridIndex;
+    }
     //now we find the 8 grids thats basically gridCollection[0] and [1], then we choose the grids from the 8 that has boids, and find these cells
     // i will use kernResetBuffer to check if a cell has a boid
     int* neightborList;
     int neightborNum = 0;
     for (int i = 0; i < 8; i++) {
-        if (gridCellStartIndices[gridIndices[i] + gridIndex] != -1) {//which means that the cell has at lease one boid, add them to the list
-            for (int k = gridCellStartIndices[gridIndices[i] + gridIndex]; k < gridCellEndIndices[gridIndices[i] + gridIndex]; k++) {
+        int gridId = gridIndex3Dto1D(gridIndices[i].x, gridIndices[i].y, gridIndices[i].z, gridResolution);
+        if (gridId >= 0 or gridId <= glm::power(gridResolution*inverseWidth, 3)) {
+        if (gridCellStartIndices[gridIndices[i]] != -1) {//which means that the cell has at lease one boid, add them to the list
+            for (int k = gridCellStartIndices[gridIndices[i]]; k < gridCellEndIndices[gridIndices[i]]; k++) {
                 neightborList[neightborNum] = particleArrayIndices[k];
                 neightborNum++;
             }
+        }
         }
     }
 
