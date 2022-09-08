@@ -456,11 +456,12 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   glm::vec3 perceivedVel(0);
 
   // Get neighbouring grid cells
-  // TODO: check 8 cells instead of 26
-  for (int x = imax(gridX - 1, 0); x < imin(gridX + 1, gridResolution - 1); ++x) {
-    for (int y = imax(gridY - 1, 0); y < imin(gridY + 1, gridResolution - 1); ++y) {
-      for (int z = imax(gridZ - 1, 0); z < imin(gridZ + 1, gridResolution - 1); ++z) {
-        int neighbourGridIndex = x + gridResolution * y + gridResolution * gridResolution * z;
+  // TODO: check 8 cells instead of 27
+  // TODO: optimize which order for for loop?
+  for (int x = imax(gridX - 1, 0); x <= imin(gridX + 1, gridResolution - 1); ++x) {
+    for (int y = imax(gridY - 1, 0); y <= imin(gridY + 1, gridResolution - 1); ++y) {
+      for (int z = imax(gridZ - 1, 0); z <= imin(gridZ + 1, gridResolution - 1); ++z) {
+        int neighbourGridIndex = gridIndex3Dto1D(x, y, z, gridResolution);
         int startIndex = gridCellStartIndices[neighbourGridIndex];
         int endIndex = gridCellEndIndices[neighbourGridIndex];
 
@@ -468,12 +469,13 @@ __global__ void kernUpdateVelNeighborSearchScattered(
           continue; // no boids in this grid cell
         }
 
-        for (int middleManIndex = startIndex; middleManIndex < endIndex; ++middleManIndex) {
+        for (int middleManIndex = startIndex; middleManIndex <= endIndex; ++middleManIndex) {
           int neighbourIndex = particleArrayIndices[middleManIndex];
 
           glm::vec3 neighbourPos = pos[neighbourIndex];
           glm::vec3 neighbourVel = vel1[neighbourIndex];
           float distance = glm::distance(boidPos, neighbourPos);
+          //float distance = 0;
           
           if (distance < rule1Distance) {
             perceivedCenter += neighbourPos;
