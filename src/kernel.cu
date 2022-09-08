@@ -388,7 +388,7 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
     }
     else if (index == N - 1)
     {
-        gridCellEndIndices[N - 1] = N - 1;
+        gridCellEndIndices[sizeof(gridCellEndIndices) / sizeof(int*) - 1] = N - 1;
     }  
     else    // Between 0 to N
     {
@@ -418,7 +418,108 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     if (index >= N) {
         return;
     }
+    glm::vec3 bPos = pos[index];
+    glm::vec3 bVel = vel1[index];
 
+    glm::vec3 dist = bPos - gridMin;    // dist from current boid pos to gridMin
+    glm::ivec3 gridIndex3 = glm::ivec3(glm::floor(dist.x * inverseCellWidth), glm::floor(dist.y * inverseCellWidth),
+        glm::floor(dist.z * inverseCellWidth));
+    int gridIndex = gridIndex3Dto1D(gridIndex3.x, gridIndex3.y, gridIndex3.z, gridResolution);
+    int xDir, yDir, zDir;
+
+
+    // Checking closest side
+    if (dist.x > (gridIndex3.x + 1) * cellWidth + 0.5 * cellWidth)
+    {
+        xDir = 1;
+    }
+    else
+    {
+        xDir = -1;
+    }
+    if (dist.y > (gridIndex3.y + 1) * cellWidth + 0.5 * cellWidth)
+    {
+        yDir = 1;
+    }
+    else
+    {
+        yDir = -1;
+    }
+    if (dist.z > (gridIndex3.z + 1) * cellWidth + 0.5 * cellWidth)
+    {
+        zDir = 1;
+    }
+    else
+    {
+        zDir = -1;
+    }
+    int indexToCheck[8] = {gridIndex,
+                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y, gridIndex3.z, gridResolution),
+                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y + yDir, gridIndex3.z, gridResolution),
+                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y, gridIndex3.z + zDir, gridResolution),
+                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y + yDir, gridIndex3.z, gridResolution),
+                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y + yDir, gridIndex3.z + zDir, gridResolution),
+                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y, gridIndex3.z + zDir, gridResolution),
+                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y + yDir, gridIndex3.z + zDir, gridResolution) };
+
+    float pc_count = 0, pv_count = 0;
+    glm::vec3 pc = glm::vec3(0.f, 0.f, 0.f);   // perceived center of mass
+    glm::vec3 c = glm::vec3(0.f, 0.f, 0.f);     // displacement to avoid collision
+    glm::vec3 pv = glm::vec3(0.f, 0.f, 0.f);   // perceived velocity of mass
+    
+    for (int i = 0; i < 8; ++i)
+    {
+        if (indexToCheck[i] >= 0 && indexToCheck[i] < sizeof(gridCellEndIndices) / sizeof(int*))
+        {
+            int startIndex = gridCellStartIndices[indexToCheck[i]];
+            int endIndex = gridCellEndIndices[indexToCheck[i]];
+            for (int j = startIndex; j < endIndex; ++j)
+            {
+                int bIndex = particleArrayIndices[j];
+                if (bIndex != index) {
+                    float dist = glm::distance(pos[bIndex], pos[index]);
+                    // For rule 1
+                    if (dist < rule1Distance)
+                    {
+                        pc = pc + pos[bIndex];
+                        pc_count++;
+                    }
+                    // For rule 2
+                    if (dist < rule2Distance)
+                    {
+                        c = c - (pos[bIndex] - pos[index]);
+                    }
+                    // For rule 3
+                    if (dist < rule3Distance)
+                    {
+                        pv = pv + vel1[bIndex];
+                        pv_count++;
+                    }
+                }
+            }
+        }
+    }
+
+
+    glm::vec3 v1 = glm::vec3(0.f, 0.f, 0.f);
+    if (pc_count > 0)
+    {
+        pc = pc / pc_count;
+        v1 = (pc - pos[index]) * rule1Scale; // velocity change from rule 1
+    }
+    glm::vec3 v2 = c * rule2Scale;                           // velocity change from rule 2
+    glm::vec3 v3 = glm::vec3(0.f, 0.f, 0.f);
+    if (pv_count > 0)
+    {
+        pv = pv / pv_count;
+        v3 = pv * rule3Scale;    // velocity change from rule 3
+    }
+
+    glm::vec3 newVel = vel1[index] + v1 + v2 + v3;
+    
+    // Clamp the speed
+    // Record the new velocity into vel2. Question: why NOT vel1?
+    vel2[index] = glm::clamp(newVel, -1 * maxSpeed, maxSpeed);
 }
 
 __global__ void kernUpdateVelNeighborSearchCoherent(
