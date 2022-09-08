@@ -275,7 +275,7 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 */
 __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   glm::vec3 *vel1, glm::vec3 *vel2) {
-    int idx = threadIdx.x + blockDim.x * blockSize.x; 
+    int idx = threadIdx.x + (blockIdx.x * blockDim.x); 
   // Compute a new velocity based on pos and vel1
     glm::vec3 changeVelocity; 
     glm::vec3 newVelocity; 
@@ -284,9 +284,7 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
         newVelocity = vel1[idx] + changeVelocity; 
     };
   // Clamp the speed
-    newVelocity.x = utilityCore::clamp(newVelocity.x, -maxSpeed, maxSpeed); 
-    newVelocity.y = utilityCore::clamp(newVelocity.y, -maxSpeed, maxSpeed);
-    newVelocity.z = utilityCore::clamp(newVelocity.z, -maxSpeed, maxSpeed);
+    newVelocity = clamp(newVelocity, -maxSpeed, maxSpeed);
   // Record the new velocity into vel2. Question: why NOT vel1?
     vel2[idx] = newVelocity; 
 }
@@ -392,7 +390,13 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 */
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
+    dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+    kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, threadsPerBlock>>>(numObjects, dev_pos, dev_vel1, dev_vel2);
+    kernUpdatePos<<<fullBlocksPerGrid, threadsPerBlock>>>(numObjects, dt, dev_pos, dev_vel2); 
   // TODO-1.2 ping-pong the velocity buffers
+    glm::vec3* temp = dev_vel1;
+    dev_vel1 = dev_vel2;
+    dev_vel2 = temp;
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
