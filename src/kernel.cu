@@ -41,9 +41,9 @@ void checkCUDAError(const char *msg, int line = -1) {
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
-#define rule1Distance 5.0f
-#define rule2Distance 3.0f
-#define rule3Distance 5.0f
+#define rule1Distance 500.0f
+#define rule2Distance 500.0f
+#define rule3Distance 500.0f
 
 #define rule1Scale 0.01f
 #define rule2Scale 0.1f
@@ -270,24 +270,14 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     newVel1 *= rule2Scale;
     newVel2 /= (N - 1);
     newVel2 *= rule3Scale;
-    float x = pos[iSelf].x;
+    /*float x = pos[iSelf].x;
     float y = pos[iSelf].y;
     float z = pos[iSelf].z;
-    /*float q = newVel1.x;
-    float w = newVel1.y;
-    float e = newVel1.z;
-    float r = newVel2.x;
-    float t = newVel2.y;
-    float y = newVel2.z;*/
-    float u = center.x;
-    float i = center.y;
-    float o = center.z;
     float x1 = center.x+newVel1.x+newVel2.x;
     float y1 = center.y + newVel1.y + newVel2.y;
-    float z1 = center.z + newVel1.z + newVel2.z;
+    float z1 = center.z + newVel1.z + newVel2.z;*/
     //return glm::vec3(0.0f, 0.0f, 0.0f);
     return (center + newVel1 + newVel2);
-  
 }
 
 /**
@@ -574,26 +564,19 @@ void Boids::stepSimulationScatteredGrid(float dt) {
     dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
     kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (numObject, gridSideCount * gridCellWidth, gridMinimum, gridInverseCellWidth, dev_pos, dev_particleArrayIndices, dev_particleGridIndices);
     //thrust sort
-    // How to copy data to the GPU
-    cudaMemcpy(dev_particleArrayIndices, dev_particleArrayIndices.get(), sizeof(int) * numObjects, cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_particleGridIndices, dev_particleGridIndices.get(), sizeof(int) * numObjects, cudaMemcpyHostToDevice);
-
     // Wrap device vectors in thrust iterators for use with thrust.
     thrust::device_ptr<int> dev_thrust_particleArrayIndices(dev_particleArrayIndices);
     thrust::device_ptr<int> dev_thrust_particleGridIndices(dev_particleGridIndices);
     // LOOK-2.1 Example for using thrust::sort_by_key
     thrust::sort_by_key(dev_thrust_particleArrayIndices, dev_thrust_particleArrayIndices + numObjects, dev_thrust_particleGridIndices);
 
-    // How to copy data back to the CPU side from the GPU
-    cudaMemcpy(dev_particleArrayIndices, dev_particleArrayIndices.get(), sizeof(int) * numObjects, cudaMemcpyDeviceToHost);
-    cudaMemcpy(dev_particleGridIndices, dev_particleGridIndices.get(), sizeof(int) * numObjects, cudaMemcpyDeviceToHost);
-    checkCUDAErrorWithLine("memcpy back failed!");
-
 
     kernResetIntBuffer << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_gridCellStartIndices, -1);
     kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
     kernUpdateVelNeighborSearchScattered << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount * gridCellWidth, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_particleArrayIndices, dev_pos, dev_vel1, dev_vel2);
     kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel2);
+
+    //pingpong
 
 }
 
