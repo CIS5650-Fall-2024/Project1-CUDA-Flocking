@@ -275,9 +275,20 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 */
 __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   glm::vec3 *vel1, glm::vec3 *vel2) {
+    int idx = threadIdx.x + blockDim.x * blockSize.x; 
   // Compute a new velocity based on pos and vel1
+    glm::vec3 changeVelocity; 
+    glm::vec3 newVelocity; 
+    if (idx < N) {
+        changeVelocity = computeVelocityChange(N, idx, pos, vel1); 
+        newVelocity = vel1[idx] + changeVelocity; 
+    };
   // Clamp the speed
+    newVelocity.x = utilityCore::clamp(newVelocity.x, -maxSpeed, maxSpeed); 
+    newVelocity.y = utilityCore::clamp(newVelocity.y, -maxSpeed, maxSpeed);
+    newVelocity.z = utilityCore::clamp(newVelocity.z, -maxSpeed, maxSpeed);
   // Record the new velocity into vel2. Question: why NOT vel1?
+    vel2[idx] = newVelocity; 
 }
 
 /**
