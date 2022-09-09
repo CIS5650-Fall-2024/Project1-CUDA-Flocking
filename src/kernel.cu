@@ -435,16 +435,16 @@ __device__ void genNeighborCells(glm::vec3 boid_pos, glm::i32vec3 grid_pos, glm:
     }
 
     int k = 0;
-    for (int x : deltas[0]) {
+    // zcx for the best spatial locality, due to the way gridIndex3Dto1D is computed
+    for (int z : deltas[2]) {
         for (int y : deltas[1]) {
-            for (int z : deltas[2]) {
+            for (int x : deltas[0]) {
                 (*out_positions)[k++] = grid_pos + glm::i32vec3(x, y, z);
             }
         }
     }
 }
 
-#define IMPL_8 //switch for 8-cell neighbor search because I originally did 27
 __global__ void kernUpdateVelNeighborSearchScattered(
     int N, int gridResolution, glm::vec3 gridMin,
     float inverseCellWidth, float cellWidth,
@@ -477,7 +477,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     glm::i32vec3 neighbor_cells[8];
     genNeighborCells(pos[index], grid_pos, gridMin, cellWidth, &neighbor_cells);
     for (glm::i32vec3 const& npos : neighbor_cells) {
-#else // the no-so-correct but simpler 27-cell neighbor search
+#else // 27-cell neighbor search
     for (int dx = -1; dx <= 1; ++dx) {
     for (int dy = -1; dy <= 1; ++dy) {
     for (int dz = -1; dz <= 1; ++dz) {
@@ -567,7 +567,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     glm::i32vec3 neighbor_cells[8];
     genNeighborCells(pos[index], grid_pos, gridMin, cellWidth, &neighbor_cells);
     for (glm::i32vec3 const& npos : neighbor_cells) {
-#else // the no-so-correct but simpler 27-cell neighbor search
+#else // the 27-cell neighbor search
     for (int dx = -1; dx <= 1; ++dx) {
     for (int dy = -1; dy <= 1; ++dy) {
     for (int dz = -1; dz <= 1; ++dz) {
