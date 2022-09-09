@@ -14,11 +14,11 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 1
-#define COHERENT_GRID 0
+#define UNIFORM_GRID 0
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 512000;
+const int N_FOR_VIS = 16000;
 const float DT = 0.2f;
 
 /**
@@ -46,6 +46,9 @@ GLFWwindow *window;
 double avgExecTime = 0.0;
 double expExecTime = 0.0;
 double frameCount = 0.0;
+
+double avgFps = 0.0;
+int fpsFrameCount = 0;
 
 /**
 * Initialization of CUDA and GLFW.
@@ -249,19 +252,20 @@ void initShaders(GLuint * program) {
       double time = glfwGetTime();
 
       if (time - timebase > 1.0) {
+        fpsFrameCount++;
         fps = frame / (time - timebase);
         timebase = time;
         frame = 0;
+        avgFps = (avgFps * (fpsFrameCount - 1) + fps) / fpsFrameCount;
       }
 
       runCUDA();
-
-      //expRenderTime = glm::mix(expRenderTime, renderTime, 0.001);
 
       std::ostringstream ss;
       ss << "[";
       ss.precision(1);
       ss << std::fixed << fps << "fps";
+      ss << ", " << std::fixed << avgFps << "avg";
       ss << ", " << std::setprecision(3) << avgExecTime << "ms]";
       ss << deviceName;
       ss << " Boid count: " << N_FOR_VIS;

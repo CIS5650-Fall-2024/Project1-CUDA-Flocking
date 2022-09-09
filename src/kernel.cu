@@ -153,7 +153,7 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("cudaMalloc dev_vel2 failed!");
 
   // LOOK-1.2 - This is a typical CUDA kernel invocation.
-  kernGenerateRandomPosArray<<<fullBlocksPerGrid, blockSize>>>(1, numObjects,
+  kernGenerateRandomPosArray<<<fullBlocksPerGrid, blockSize>>>(time(NULL) % 100, numObjects,
     dev_pos, scene_scale);
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
@@ -300,7 +300,11 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
     return;
   }
   glm::vec3 dVel = computeVelocityChange(N, index, pos, vel1);
-  vel2[index] = glm::clamp(vel1[index] + dVel, glm::vec3(-maxSpeed), glm::vec3(maxSpeed));
+  glm::vec3 newVel = vel1[index] + dVel;
+  float v = glm::length(newVel);
+  if (v > 1.0f)
+    newVel /= v;
+  vel2[index] = newVel;
 }
 
 /**
@@ -483,7 +487,11 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     dVel += percVelocitySum / float(numNeighborRule3) * rule3Scale;
   }
 
-  vel2[index] = glm::clamp(vel1[index] + dVel, glm::vec3(-maxSpeed), glm::vec3(maxSpeed));
+  glm::vec3 newVel = vel1[index] + dVel;
+  float v = glm::length(newVel);
+  if (v > 1.0f)
+    newVel /= v;
+  vel2[index] = newVel;
 }
 
 __global__ void kernSortBoidDataIndexed(int N, glm::vec3 *target, glm::vec3 *data, int *indices) {
@@ -586,7 +594,11 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     dVel += percVelocitySum / float(numNeighborRule3) * rule3Scale;
   }
 
-  vel2[index] = glm::clamp(vel1[index] + dVel, glm::vec3(-maxSpeed), glm::vec3(maxSpeed));
+  glm::vec3 newVel = vel1[index] + dVel;
+  float v = glm::length(newVel);
+  if (v > 1.0f)
+    newVel /= v;
+  vel2[index] = newVel;
 }
 
 /**
