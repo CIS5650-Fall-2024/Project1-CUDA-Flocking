@@ -386,10 +386,6 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
     {
         gridCellStartIndices[0] = 0;
     }
-    else if (index == N - 1)
-    {
-        gridCellEndIndices[sizeof(gridCellEndIndices) / sizeof(int*) - 1] = N - 1;
-    }  
     else    // Between 0 to N
     {
         if (particleGridIndices[index - 1] != particleGridIndices[index])
@@ -469,7 +465,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     
     for (int i = 0; i < 8; ++i)
     {
-        if (indexToCheck[i] >= 0 && indexToCheck[i] < sizeof(gridCellEndIndices) / sizeof(int*))
+        if (indexToCheck[i] >= 0 && indexToCheck[i] < gridResolution* gridResolution* gridResolution)
         {
             int startIndex = gridCellStartIndices[indexToCheck[i]];
             int endIndex = gridCellEndIndices[indexToCheck[i]];
