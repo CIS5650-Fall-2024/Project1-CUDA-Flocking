@@ -62,34 +62,34 @@
 
 ### Performance Impact by The Number of Boids
 - the block size is fixed at **128**
-- **Naive**
+#### Naive
 ![](./images/analysis/num_boid_test__NAIVE.png)
-	- in a theoretical sense, the time complexity of the naive implementation is O(n<sup>2</sup>).
-	- the number of boids appears to have an inverse square relationship with the framerate
+- in theory, the time complexity of the naive implementation is O(n<sup>2</sup>).
+- the number of boids appears to have an inverse square relationship with the framerate
 
-- **Uniform Grid**
+#### Uniform Grid
 ![](./images/analysis/num_boid_test__UNIFORM_GRID.png)
-	- the time complexity should be O(n) in theory
-	- we can see that the algorithm scales much better with the number of boids; the relationship is roughly linear
-
-- **Coherent Grid**
+- the time complexity should be O(n) in theory
+- we can see that the algorithm scales much better with the number of boids; the relationship is roughly linear
+#### Coherent Grid
 ![](./images/analysis/num_boid_test__COHERENT_GRID.png)
-	- in theory, this implementation should have the same time complexity as the uniform grid, but the constant factor should be lower
-	- as shown, the average frame rate is higher compared with uniform grid
-	- however, there are frame rate drops beginning at 25,000 boids. I can't find a reasonable explanation yet, but I assume it is because of noises during data collection. (e.g. background apps using GPU)
+- in theory, this implementation should have the same time complexity as the uniform grid, but the constant factor should be lower
+- as shown, the average frame rate is higher compared with uniform grid
+- however, there are frame rate drops beginning at 25,000 boids. I can't find a reasonable explanation yet, but I assume it is because of noises during data collection. (e.g. background apps using GPU)
 
 ### Performance Impact by Block Size
 - the number of boids is fixed at **5000**
-- **Naive**
+#### Naive
 ![](./images/analysis/block_size_test__NAIVE.png)
-- **Uniform Grid**
+#### Uniform Grid
 ![](./images/analysis/block_size_test__UNIFORM_GRID.png)
-- **Coherent Grid**
+#### Coherent Grid
 ![](./images/analysis/block_size_test__COHERENT_GRID.png)
 - the thread dimension used in my implementation is `(ceil(N/B) x B)` where `B` is the block size and `N` is the number of objects
 	- note: the number of objects can refer to anything being computed, e.g. grids and boids
 - There appears to be no strong corelation between block size and framerate
 - Some observations:
+
 1. A huge FPS drop occurs with 100 blocks for the naive and coherent grid implementations.
 2. All implementations experience FPS drops at around 900-1000 block size
 - Possible Explanation for the observations: Maybe it has to do with the way the scheduler in each SM groups threads into warps. Maybe branch divergence happens to be more significant for the block sizes around 100 and around 900?
