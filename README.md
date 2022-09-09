@@ -27,7 +27,7 @@
 	- Otherwise, there appears to be no strong corelation between block size and performance
 
 - For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
-	- I observed performance gains with coherent grid (see the graphs in performance analysis). The difference begins to show after 10k boids. Coherent grid scales better than uniform grid because it has better spatial locality.
+	- I observed performance gains with coherent grid (see the graphs in performance analysis). The difference begins to show after 10k boids. Coherent grid scales better than uniform grid because it has better spatial locality. Please see the table in the next question for real test results.
 
 - Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
 	- There are 3 possible implementations; assuming the checking distance is `d`
@@ -50,8 +50,19 @@
 		- Implementation 3
 			- distance-checking for 26 cells, because it does not need to distance-check the boids in the same cell (they are definitely neighbors)
 			- no quadrant-checking
-	- I only did implementations based on conclusion 1 and 2. You can toggle the macro `IMPL_8` in `kernel.cu` to switch between them. In practice, they have similar performance even at 200k boids.
-	- All in all, I think implementation 2 is likely the winner, because the overhead of quadrant-checking is low, and it is probably worth saving the extra cost of distance checking.
+	- You can change the macros `IMPL_8` and `cell_width_mul` in `profiling.h` to switch between them. 
+	- I initially thought implementation 2 is likely the winner, because the overhead of quadrant-checking is low, and it is probably worth saving the extra cost of distance checking.
+	- However, the actual stress test suggusts that implementation 3 is superior. Maybe this is caused by the quadrant checking and the excessive distance checking in implementations 1 and 2 respectively.
+	- Stress test Results:
+
+	| Implementations Factors| Average FPS with 500k boids |
+	|-|-|
+	|Uniform, 27-neighbor, w=d |236.251|
+	|Uniform, 27-neighbor, w=2d|48.5903|
+	|Uniform, 8-neighbor, w=2d|170.148|
+	|Coherent, 27-neighbor, w=d |1721.65|
+	|Coherent, 27-neighbor, w=2d|685.222|
+	|Coherent, 8-neighbor, w=2d|1612.25|
 
 ## Performance Analysis
 - Framerate is used as the primary metric to measure performance
