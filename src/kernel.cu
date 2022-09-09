@@ -382,15 +382,12 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
     if (index >= N) {
         return;
     }
-    if (index == 0)
+
+    if (particleGridIndices[index - 1] != particleGridIndices[index])
     {
-        gridCellStartIndices[0] = 0;
-    }
-    else    // Between 0 to N
-    {
-        if (particleGridIndices[index - 1] != particleGridIndices[index])
+        gridCellStartIndices[particleGridIndices[index]] = index;
+        if (index != 0)
         {
-            gridCellStartIndices[particleGridIndices[index]] = index;
             gridCellEndIndices[particleGridIndices[index - 1]] = index - 1;
         }
     }
