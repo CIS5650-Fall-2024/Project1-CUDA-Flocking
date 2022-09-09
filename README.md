@@ -7,7 +7,7 @@
 ## Showcase
 - 5k boids (naive)
 ![Naive 5k](./images/5k.gif)
-- 20k boids (coherent grid)
+- 200k boids (coherent grid)
 ![Coherent Grid 20k](./images/20k.gif)
 
 ## Changes to Source Code Besides the Requirement
