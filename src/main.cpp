@@ -18,7 +18,7 @@
 #define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-#define N_FOR_VIS 5000
+#define N_FOR_VIS 200000
 const float DT = 0.2f;
 
 #include "profiling.h"

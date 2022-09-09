@@ -22,8 +22,8 @@ exe_cmd = [
 	"start",
 	"-Wait",
 	"-NoNewWindow",
-    "-WorkingDirectory",
-    "\"..\\build\\\"",
+	"-WorkingDirectory",
+	"\"..\\build\\\"",
 	"-FilePath",
 	"\"..\\build\\cis565_boids.exe\""
 ]
@@ -37,7 +37,7 @@ impl_id_2_name = {
 	2 : "UNIFORM_GRID",
 	3 : "COHERENT_GRID",
 }
-def gen_header(time, num_boids, save_file_name, block_size, impl):
+def gen_header(time, num_boids, save_file_name, block_size, impl, width_mul=2):
 	'''
 	generates a header of the following format:
 
@@ -69,15 +69,18 @@ def gen_header(time, num_boids, save_file_name, block_size, impl):
 			f.write("#define COHERENT_GRID 1\n")
 
 		f.write(f'#define blocksize {block_size}\n')
+		f.write(f"#define cell_width_mul {width_mul}.0f\n")
 		f.write(f"#define SAVE_FILE_NAME \"{save_file_name}\"\n")
 		f.write('#endif')
 
-PROFILE_TIME = 1 # in seconds
-NUM_SAMPLES = 5
+PROFILE_TIME = 5 # in seconds
+NUM_SAMPLES = 20
+
 num_boids = [ 1000+i*2000 for i in range(NUM_SAMPLES) ]
 block_sizes = [ 100+i*50 for i in range(NUM_SAMPLES) ]
+cell_widths = [ 2+i for i in range(NUM_SAMPLES) ]
 
-if __name__ == '__main__':
+def boid_test():
 	# number of boids analysis
 	for x in num_boids:
 		for impl_id in range(1,4):
@@ -89,6 +92,7 @@ if __name__ == '__main__':
 			subprocess.call(build_cmd)
 			subprocess.call(exe_cmd)
 
+def block_size_test():
 	# block size analysis
 	for x in block_sizes:
 		for impl_id in range(1,4):
@@ -99,3 +103,42 @@ if __name__ == '__main__':
 				impl = impl_id)
 			subprocess.call(build_cmd)
 			subprocess.call(exe_cmd)
+
+def two_factor_test():
+	# 3D graph for framerate as function of (block size, number of boids)
+	for x in block_sizes:
+		for y in num_boids:
+			for impl_id in range(1,4):
+				gen_header(time = PROFILE_TIME,
+					num_boids = y,
+					save_file_name = f"two_factor_test__{impl_id_2_name[impl_id]}.csv",
+					block_size = x,
+					impl = impl_id)
+				subprocess.call(build_cmd)
+				subprocess.call(exe_cmd)
+
+# TODO
+def cell_width_test():
+	# cell width analysis
+	for w in cell_widths:
+		for impl_id in range(1,4):
+			gen_header(time = PROFILE_TIME,
+				num_boids = 5000,
+				save_file_name = f"cell_width_test__{impl_id_2_name[impl_id]}.csv",
+				block_size = 128,
+				impl = impl_id,
+				width_mul = w)
+			subprocess.call(build_cmd)
+			subprocess.call(exe_cmd)
+
+# num boid, block size, two factors, grid width factor
+TESTS = [ 
+	# boid_test,
+	# block_size_test,
+	# two_factor_test,
+	cell_width_test
+]
+
+if __name__ == '__main__':
+	for test in TESTS:
+		test()

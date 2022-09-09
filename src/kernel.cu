@@ -68,6 +68,11 @@ void checkCUDAError(const char *msg, int line = -1) {
 
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
+
+
+/* multiplier for the cell width */
+#define cell_width_mul 2.0f
+
 #include "profiling.h"
 
 /***********************************************
@@ -174,7 +179,7 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
-  gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  gridCellWidth = cell_width_mul * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -416,20 +421,44 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
     }
 }
 
+// given a boid, return the neighboring cells that possibly contain the neighbors of this boid
+__device__ void genNeighborCells(glm::vec3 boid_pos, glm::i32vec3 grid_pos, glm::vec3 gridMin, float cellWidth, glm::i32vec3(*out_positions)[8]) {
+    glm::vec3 grid_center = grid_pos;
+    grid_center *= cellWidth;
+    boid_pos -= gridMin; // work in grid local space
+
+    int deltas[3][2];
+
+    for (int i = 0; i < 3; ++i) {
+        deltas[i][0] = 0;
+        deltas[i][1] = boid_pos[i] > grid_center[i] ? 1 : -1;
+    }
+
+    int k = 0;
+    for (int x : deltas[0]) {
+        for (int y : deltas[1]) {
+            for (int z : deltas[2]) {
+                (*out_positions)[k++] = grid_pos + glm::i32vec3(x, y, z);
+            }
+        }
+    }
+}
+
+#define IMPL_8 //switch for 8-cell neighbor search because I originally did 27
 __global__ void kernUpdateVelNeighborSearchScattered(
-  int N, int gridResolution, glm::vec3 gridMin,
-  float inverseCellWidth, float cellWidth,
-  int *gridCellStartIndices, int *gridCellEndIndices,
-  int *particleArrayIndices,
-  glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2) {
-  // TODO-2.1 - Update a boid's velocity using the uniform grid to reduce
-  // the number of boids that need to be checked.
-  // - Identify the grid cell that this particle is in
-  // - Identify which cells may contain neighbors. This isn't always 8.
-  // - For each cell, read the start/end indices in the boid pointer array.
-  // - Access each boid in the cell and compute velocity change from
-  //   the boids rules, if this boid is within the neighborhood distance.
-  // - Clamp the speed change before putting the new speed in vel2
+    int N, int gridResolution, glm::vec3 gridMin,
+    float inverseCellWidth, float cellWidth,
+    int* gridCellStartIndices, int* gridCellEndIndices,
+    int* particleArrayIndices,
+    glm::vec3* pos, glm::vec3* vel1, glm::vec3* vel2) {
+    // TODO-2.1 - Update a boid's velocity using the uniform grid to reduce
+    // the number of boids that need to be checked.
+    // - Identify the grid cell that this particle is in
+    // - Identify which cells may contain neighbors. This isn't always 8.
+    // - For each cell, read the start/end indices in the boid pointer array.
+    // - Access each boid in the cell and compute velocity change from
+    //   the boids rules, if this boid is within the neighborhood distance.
+    // - Clamp the speed change before putting the new speed in vel2
     int index = threadIdx.x + (blockIdx.x * blockDim.x);
     if (index >= N) {
         return;
@@ -437,42 +466,50 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
     int num_grids = gridResolution * gridResolution * gridResolution;
     glm::i32vec3 grid_pos = getGridIndex(pos[index], inverseCellWidth, gridMin);
-    
+
     // rule calculation variables
     glm::vec3 perceived_center{ 0,0,0 },
         perceived_velocity{ 0,0,0 },
         rule2offset{ 0,0,0 };
     unsigned neighbor_cnts[2] = { 0,0 };
 
+#ifdef IMPL_8 // the 8-cell neighbor search
+    glm::i32vec3 neighbor_cells[8];
+    genNeighborCells(pos[index], grid_pos, gridMin, cellWidth, &neighbor_cells);
+    for (glm::i32vec3 const& npos : neighbor_cells) {
+#else // the no-so-correct but simpler 27-cell neighbor search
     for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                glm::i32vec3 npos = grid_pos + glm::i32vec3 { dx, dy, dz };
-                int grid_index = gridIndex3Dto1D(npos.x, npos.y, npos.z, gridResolution);
-                if (grid_index >= 0 && grid_index < num_grids) {
-                    int start = gridCellStartIndices[grid_index];
-                    int end = gridCellEndIndices[grid_index];
+    for (int dy = -1; dy <= 1; ++dy) {
+    for (int dz = -1; dz <= 1; ++dz) {
+        glm::i32vec3 npos = grid_pos + glm::i32vec3(dx, dy, dz);
+#endif
+        int grid_index = gridIndex3Dto1D(npos.x, npos.y, npos.z, gridResolution);
+        if (grid_index >= 0 && grid_index < num_grids) {
+            int start = gridCellStartIndices[grid_index];
+            int end = gridCellEndIndices[grid_index];
 
-                    for (int j = start; j < end; ++j) {
-                        int i = particleArrayIndices[j];
-                        if (i != index) {
-                            float dist = glm::distance(pos[i], pos[index]);
-                            if (dist < rule1Distance) {
-                                perceived_center += pos[i];
-                                ++neighbor_cnts[0];
-                            }
-                            if (dist < rule2Distance)
-                                rule2offset -= pos[i] - pos[index];
-                            if (dist < rule3Distance) {
-                                perceived_velocity += vel1[i];
-                                ++neighbor_cnts[1];
-                            }
-                        }
+            for (int j = start; j < end; ++j) {
+                int i = particleArrayIndices[j];
+                if (i != index) {
+                    float dist = glm::distance(pos[i], pos[index]);
+                    if (dist < rule1Distance) {
+                        perceived_center += pos[i];
+                        ++neighbor_cnts[0];
+                    }
+                    if (dist < rule2Distance)
+                        rule2offset -= pos[i] - pos[index];
+                    if (dist < rule3Distance) {
+                        perceived_velocity += vel1[i];
+                        ++neighbor_cnts[1];
                     }
                 }
             }
         }
+#ifdef IMPL_8
     }
+#else
+    }}}
+#endif
 
     if (neighbor_cnts[0]) {
         perceived_center /= neighbor_cnts[0];
@@ -526,35 +563,43 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         rule2offset{ 0,0,0 };
     unsigned neighbor_cnts[2] = { 0,0 };
 
+#ifdef IMPL_8 // the 8-cell neighbor search
+    glm::i32vec3 neighbor_cells[8];
+    genNeighborCells(pos[index], grid_pos, gridMin, cellWidth, &neighbor_cells);
+    for (glm::i32vec3 const& npos : neighbor_cells) {
+#else // the no-so-correct but simpler 27-cell neighbor search
     for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                glm::i32vec3 npos = grid_pos + glm::i32vec3{ dx, dy, dz };
-                int grid_index = gridIndex3Dto1D(npos.x, npos.y, npos.z, gridResolution);
-                if (grid_index >= 0 && grid_index < num_grids) {
-                    int start = gridCellStartIndices[grid_index];
-                    int end = gridCellEndIndices[grid_index];
+    for (int dy = -1; dy <= 1; ++dy) {
+    for (int dz = -1; dz <= 1; ++dz) {
+        glm::i32vec3 npos = grid_pos + glm::i32vec3(dx, dy, dz);
+#endif
+        int grid_index = gridIndex3Dto1D(npos.x, npos.y, npos.z, gridResolution);
+        if (grid_index >= 0 && grid_index < num_grids) {
+            int start = gridCellStartIndices[grid_index];
+            int end = gridCellEndIndices[grid_index];
 
-                    for (int i = start; i < end; ++i) {
-                        // only difference: i is used directly to index pos & vel arrays
-                        if (i != index) {
-                            float dist = glm::distance(pos[i], pos[index]);
-                            if (dist < rule1Distance) {
-                                perceived_center += pos[i];
-                                ++neighbor_cnts[0];
-                            }
-                            if (dist < rule2Distance)
-                                rule2offset -= pos[i] - pos[index];
-                            if (dist < rule3Distance) {
-                                perceived_velocity += vel1[i];
-                                ++neighbor_cnts[1];
-                            }
-                        }
+            for (int i = start; i < end; ++i) {
+                // only difference: i is used directly to index pos & vel arrays
+                if (i != index) {
+                    float dist = glm::distance(pos[i], pos[index]);
+                    if (dist < rule1Distance) {
+                        perceived_center += pos[i];
+                        ++neighbor_cnts[0];
+                    }
+                    if (dist < rule2Distance)
+                        rule2offset -= pos[i] - pos[index];
+                    if (dist < rule3Distance) {
+                        perceived_velocity += vel1[i];
+                        ++neighbor_cnts[1];
                     }
                 }
             }
         }
+#ifdef IMPL_8
     }
+#else
+    }}}
+#endif
 
     if (neighbor_cnts[0]) {
         perceived_center /= neighbor_cnts[0];
