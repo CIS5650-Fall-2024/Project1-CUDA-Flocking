@@ -129,6 +129,7 @@ __host__ __device__ glm::vec3 generateRandomVec3(float time, int index) {
 */
 __global__ void kernGenerateRandomPosArray(int time, int N, glm::vec3 * arr, float scale) {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  // some threads are extra and thus won't enter this case.
   if (index < N) {
     glm::vec3 rand = generateRandomVec3(time, index);
     arr[index].x = scale * rand.x;
@@ -364,11 +365,11 @@ __global__ void kernUpdatePos(int N, float dt, glm::vec3 *pos, glm::vec3 *vel) {
 //          for(x)
 //            for(y)
 //             for(z)? Or some other order?
-__device__ int gridIndex3Dto1D(int x, int y, int z, int gridResolution) {
-  return x + y * gridResolution + z * gridResolution * gridResolution;
+__device__ int gridIndex3Dto1D(int x, int y, int z, int gridSideCount) {
+  return x + y * gridSideCount + z * gridSideCount * gridSideCount;
 }
 
-__global__ void kernComputeIndices(int N, int gridResolution,
+__global__ void kernComputeIndices(int N, int gridSideCount,
   glm::vec3 gridMin, float inverseCellWidth,
   glm::vec3 *pos, int *indices, int *gridIndices) {
     // TODO-2.1
@@ -388,7 +389,7 @@ __global__ void kernComputeIndices(int N, int gridResolution,
         int iz = (int) (std::floor((boidPos.z - gridMin.z) * inverseCellWidth));
 
         // compute 1D cell idx from 3D
-        int cellIdx = gridIndex3Dto1D(ix, iy, iz, gridResolution);
+        int cellIdx = gridIndex3Dto1D(ix, iy, iz, gridSideCount);
 
         // fill dev_particleGridIndices at boidIdx
         gridIndices[boidIdx] = cellIdx;
@@ -426,54 +427,174 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
     // if different from idx + 1, set as end cell.
     // not sure if most efficient way to do it honestly.
 
-    int idx = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (idx < N) {
-        int gridCell = particleGridIndices[idx];
+    int accessIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (accessIdx < N) {
+        int gridCell = particleGridIndices[accessIdx];
 
-        if (N == 1) {
-            gridCellEndIndices[gridCell] = idx;
-            gridCellStartIndices[gridCell] = idx;
+        if (accessIdx == 0) {
+            gridCellStartIndices[gridCell] = accessIdx;
+
+            // check for next grid cell as well
+            int nextGridCell = particleGridIndices[accessIdx + 1];
+            if (gridCell != nextGridCell) {
+                gridCellEndIndices[gridCell] = accessIdx;
+            }
+        }
+        else if (accessIdx == N - 1) {
+            gridCellEndIndices[gridCell] = accessIdx;
+
+            // check if gridCell == prevGridCell. 
+            int prevGridCell = particleGridIndices[accessIdx - 1];
+            if (gridCell != prevGridCell) {
+                gridCellStartIndices[gridCell] = accessIdx;
+            }
         }
         else {
-            if (idx == 0) {
-                gridCellStartIndices[gridCell] = idx;
-
-                // check for next grid cell as well
-                int nextGridCell = particleGridIndices[idx + 1];
-                if (gridCell != nextGridCell) {
-                    gridCellEndIndices[gridCell] = idx;
-                }
+            int prevGridCell = particleGridIndices[accessIdx - 1];
+            int nextGridCell = particleGridIndices[accessIdx + 1];
+            if (gridCell != prevGridCell) {
+                gridCellStartIndices[gridCell] = accessIdx;
             }
-            else if (idx == N - 1) {
-                gridCellEndIndices[gridCell] = idx;
-
-                // check if gridCell == prevGridCell. 
-                int prevGridCell = particleGridIndices[idx - 1];
-                if (gridCell != prevGridCell) {
-                    gridCellStartIndices[gridCell] = idx;
-                }
-            }
-            else {
-                int prevGridCell = particleGridIndices[idx - 1];
-                int nextGridCell = particleGridIndices[idx + 1];
-                if (gridCell != prevGridCell) {
-                    gridCellStartIndices[gridCell] = idx;
-                }
-                if (gridCell != nextGridCell) {
-                    gridCellEndIndices[gridCell] = idx;
-                }
+            if (gridCell != nextGridCell) {
+                gridCellEndIndices[gridCell] = accessIdx;
             }
         }
     }
 }
 
 // device helper function
-__device__ void kernComputeVelocityChangeOptimized(int iSelf) {
+__device__ glm::vec3 kernComputeVelocityChangeOptimized(int N, glm::vec3 gridMin, float cellWidth, int iSelf, glm::vec3* pos, 
+    glm::vec3* vel1, int* gridCellStartIndices, int* gridCellEndIndices, int* particleArrayIndices, int sideCount) {
 
+    int selfIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (selfIdx < N) {
+        glm::vec3 selfPos = pos[selfIdx];
+        glm::vec3 velocityChange = glm::vec3(0.f);
+
+        int numValid1 = 0;
+        int numValid3 = 0;
+
+        glm::vec3 center = glm::vec3(0.f);
+        glm::vec3 c = glm::vec3(0.f);
+        glm::vec3 perceivedVelocity = glm::vec3(0.f);
+
+        // find maximum of entire grid in cell space coordinates.
+        glm::vec3 cellSpaceMax = glm::vec3(sideCount - 1, sideCount - 1, sideCount - 1);
+
+        // current cell location in cell space coordinates
+        int ix = (int)(std::floor((selfPos.x - gridMin.x) / cellWidth));
+        int iy = (int)(std::floor((selfPos.y - gridMin.y) / cellWidth));
+        int iz = (int)(std::floor((selfPos.z - gridMin.z) / cellWidth));
+
+        // find minimum of current cell in world space coordinates
+        int cellMinx = (int) (ix * cellWidth + gridMin.x);
+        int cellMiny = (int) (iy * cellWidth + gridMin.y);
+        int cellMinz = (int) (iz * cellWidth + gridMin.z);
+
+        glm::vec3 curCellMin = glm::vec3(cellMinx, cellMiny, cellMinz);
+
+        // find the local location of the boid relative to its own cell
+        float smallCellWidth = cellWidth / 2; 
+        float localX = (selfPos.x - curCellMin.x);
+        float localY = (selfPos.y - curCellMin.y);
+        float localZ = (selfPos.z - curCellMin.z);
+        
+        // create a bounding box based on the location of boid within the grid in cell space coordinates.
+        float xMax, xMin, yMax, yMin, zMax, zMin = 0;
+
+        // if localX is less than curGridMin.x + smallCellWidth which is halfway
+        // xMax and co. are all cell space coordinates and not world space coordaintes.
+        if (localX <= smallCellWidth) {
+            xMax = ix;
+            // clamp xMin
+            xMin = imax(ix - 1, 0);
+        }
+        else {
+            // clamp xMax
+            xMax = imin(ix + 1, cellSpaceMax.x);
+            xMin = ix;
+        }
+
+        if (localY <= smallCellWidth) {
+            yMax = iy;
+            // clamp yMin
+            yMin = imax(iy - 1, 0);
+        }
+        else {
+            // clamp yMax
+            yMax = imin(iy + 1, cellSpaceMax.y);
+            yMin = iy;
+        }
+
+        if (localZ <= smallCellWidth) {
+            zMax = iz;
+            // clamp zMin
+            zMin = imax(iz - 1, 0);
+        }
+        else {
+            // clamp zMax
+            zMax = imin(iz + 1, cellSpaceMax.z);
+            zMin = iz;
+        }
+
+        // loop within the bounding box.
+        // Use the furthest left and front most upper cell as marker for going around 8
+        // these coordinates have already been clamped
+
+        for (float x = xMin; x <= xMax; x += 1) {
+            for (float y = yMin; y <= yMax; y += 1) {
+                for (float z = zMin; z <= zMax; z += 1) {
+                    int gridIdx = gridIndex3Dto1D(x, y, z, sideCount);
+                    int startIdx = gridCellStartIndices[gridIdx];
+                    int endIdx = gridCellEndIndices[gridIdx];
+                    if (startIdx > -1) {
+                        // if start idx is > -1, then boids exist
+                        for (int curIdx = startIdx; curIdx < endIdx; curIdx++) {
+                            int nBoidIdx = particleArrayIndices[curIdx];
+                            glm::vec3 nBoidPos = pos[nBoidIdx];
+
+                            float dist = glm::distance(selfPos, nBoidPos);
+
+                            // Rule 1
+                            if (nBoidIdx != selfIdx && dist < rule1Distance) {
+                                center += pos[nBoidIdx];
+                                numValid1 += 1;
+                            }
+
+                            // Rule 2
+                            if (nBoidIdx != selfIdx && dist < rule2Distance) {
+                                c -= (nBoidPos - selfPos);
+                            }
+
+                            // Rule 3
+                            if (nBoidIdx != selfIdx && dist < rule3Distance) {
+                                perceivedVelocity += vel1[nBoidIdx];
+                                numValid3 += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (numValid1 != 0) {
+            center /= numValid1;
+            velocityChange += (center - selfPos) * rule1Scale;
+        }
+
+        velocityChange += c * rule2Scale;
+
+        if (numValid3 != 0) {
+            perceivedVelocity /= numValid3;
+            velocityChange += perceivedVelocity * rule3Scale;
+        }
+
+        return velocityChange;
+    }
 }
 
 __global__ void kernUpdateVelNeighborSearchScattered(
-  int N, int gridResolution, glm::vec3 gridMin,
+  int N, int gridSideCount, glm::vec3 gridMin,
   float inverseCellWidth, float cellWidth,
   int *gridCellStartIndices, int *gridCellEndIndices,
   int *particleArrayIndices,
@@ -496,64 +617,8 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
     int selfIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (selfIdx < N) {
-        glm::vec3 selfPos = pos[selfIdx];
-        glm::vec3 velocityChange = glm::vec3(0.f);
-
-        int numValid1 = 0;
-        int numValid3 = 0;
-
-        glm::vec3 center = glm::vec3(0.f);
-        glm::vec3 c = glm::vec3(0.f);
-        glm::vec3 perceivedVelocity = glm::vec3(0.f);
-
-        // When optimized, only 8 instead of gridCellCount
-        // Use the furthest left and front most cell as marker for going around 8
-        // Aka, the min of the cell grid index out of the 8 is the marker.
-        // Unused for the time being.
-        glm::vec3* leftFrontCell = 0;
-
-        int gridCellCount = gridResolution * gridResolution * gridResolution;
-
-        for (int i = 0; i < gridCellCount; i++) {
-            int startIdx = gridCellStartIndices[i];
-            if (startIdx > -1) {
-                // if startIdx is not -1, then it has boids.
-                int nBoidIdx = particleArrayIndices[startIdx];
-                glm::vec3 nBoidPos = pos[nBoidIdx];
-
-                float dist = glm::distance(selfPos, nBoidPos);
-
-                // Rule 1
-                if (nBoidIdx != selfIdx &&  dist < rule1Distance) {
-                    center += pos[nBoidIdx];
-                    numValid1 += 1;
-                }
-
-
-                // Rule 2
-                if (nBoidIdx != selfIdx && dist < rule2Distance) {
-                    c -= (nBoidPos - selfPos);
-                }
-
-                // Rule 3
-                if (nBoidIdx != selfIdx && dist < rule3Distance) {
-                    perceivedVelocity += vel1[nBoidIdx];
-                    numValid3 += 1;
-                }
-            }
-        }
-
-        if (numValid1 != 0) {
-            center /= numValid1;
-            velocityChange += (center - selfPos) * rule1Scale;
-        }
-
-        velocityChange += c * rule2Scale;
-
-        if (numValid3 != 0) {
-            perceivedVelocity /= numValid3;
-            velocityChange += perceivedVelocity * rule3Scale;
-        }
+        glm::vec3 velocityChange = kernComputeVelocityChangeOptimized(N, gridMin, cellWidth, selfIdx, pos, vel1, gridCellStartIndices, 
+            gridCellEndIndices, particleArrayIndices, gridSideCount);
 
         // clamp speed and set new velocity
         glm::vec3 finalVel = vel1[selfIdx] + velocityChange;
@@ -567,7 +632,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 }
 
 __global__ void kernUpdateVelNeighborSearchCoherent(
-  int N, int gridResolution, glm::vec3 gridMin,
+  int N, int gridSideCount, glm::vec3 gridMin,
   float inverseCellWidth, float cellWidth,
   int *gridCellStartIndices, int *gridCellEndIndices,
   glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2) {
@@ -634,8 +699,17 @@ void Boids::stepSimulationScatteredGrid(float dt) {
     // per boid basis because we read from dev_particleGridIndices
     kernIdentifyCellStartEnd<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 
+    // debug figure out whether start and end are correct
+    //thrust::device_ptr<int> debug_gridCellStartIndices = thrust::device_ptr<int>(dev_gridCellStartIndices);
+    //thrust::device_ptr<int> debug_gridCellEndIndices = thrust::device_ptr<int>(dev_gridCellEndIndices);
+    //for (int i = 0; i < numCells; i++) {
+    //    std::cout << "cell #: " << i << " starts at: " << debug_gridCellStartIndices[i] << " and ends at: " << debug_gridCellEndIndices[i] << std::endl;
+    //}
+    // this all looks fine up until this point
+    
     // per boid basis
-    kernUpdateVelNeighborSearchScattered<<<fullBlocksPerGrid, blockSize>>>(numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth,
+    // can I pass in gridSideCount instead lol
+    kernUpdateVelNeighborSearchScattered << <fullBlocksPerGrid, blockSize >> >(numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth,
         dev_gridCellStartIndices, dev_gridCellEndIndices, dev_particleArrayIndices, dev_pos, dev_vel1, dev_vel2);
 
     // update position per boid
@@ -724,6 +798,7 @@ void Boids::unitTest() {
   thrust::sort_by_key(dev_thrust_keys, dev_thrust_keys + N, dev_thrust_values);
 
   // How to copy data back to the CPU side from the GPU
+
   cudaMemcpy(intKeys.get(), dev_intKeys, sizeof(int) * N, cudaMemcpyDeviceToHost);
   cudaMemcpy(intValues.get(), dev_intValues, sizeof(int) * N, cudaMemcpyDeviceToHost);
   checkCUDAErrorWithLine("memcpy back failed!");
