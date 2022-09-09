@@ -42,13 +42,13 @@
 		3. when cell width = d, we need to check 27 neighbors in all scenarios and not fewer.
 	- Pros & cons analysis for each possible implementation
 		- Implementation 1
-			- distance-checking for all 28 cells (including the boid's own cell)
+			- distance-checking for all 27 cells (including the boid's own cell)
 			- no quadrant-checking
 		- Implementation 2
-			- distance-checking for 9 cells
+			- distance-checking for 8 cells
 			- quadrant-checking needed
 		- Implementation 3
-			- distance-checking for 27 cells, because it does not need to distance-check the boids in the same cell (they are definitely neighbors)
+			- distance-checking for 26 cells, because it does not need to distance-check the boids in the same cell (they are definitely neighbors)
 			- no quadrant-checking
 	- I only did implementations based on conclusion 1 and 2. You can toggle the macro `IMPL_8` in `kernel.cu` to switch between them. In practice, they have similar performance even at 200k boids.
 	- All in all, I think implementation 2 is likely the winner, because the overhead of quadrant-checking is low, and it is probably worth saving the extra cost of distance checking.
