@@ -36,16 +36,22 @@
 		3. cell width = 2d AND check 27 neighbors
 	- as shown, the doted lines delineate all possible areas that the neighbors of the boids in the cell may appear, for cell width = d and = 2d respectively
 		- ![](./images/illustration_q3.jpg)
-	- I can make 3 conclusions so far (they may be wrong):
+	- I can make 3 conclusions so far:
 		1. when cell width = 2d, we can blindly check all 27 neighbors (i.e. the dot line area)
-		2. when cell width = 2d, we can optimally check 8 neighbors if we know which of the four quadrant the boid falls within the cell.
-		3. when cell width = d, we need to check 8 neighbors in all scenarios and not fewer.
-	- In theory, implementation based on conclusion 3 is the most optimal and probably the fastest because:
-		- it does not need to distance-check the boids in the same cell (they are definitely neighbors)
-		- it only checks 8 neighboring cells, which is as few as it can go.
-		- it does not need to do the quadrant-checking in conclusion 2.
-	- I only did implementations based on conclusion 1 and 2. You can toggle the macro `IMPL_8` in `kernel.cu` to switch between them. In practice, they have nearly identical performance even at 200k boids.
-	- All in all, I think checking 8 neighbors and using cell width = d is the most efficient.
+		2. when cell width = 2d, we can optimally check 8 neighbors if we know which of the four quadrant the boid falls within its own cell.
+		3. when cell width = d, we need to check 27 neighbors in all scenarios and not fewer.
+	- Pros & cons analysis for each possible implementation
+		- Implementation 1
+			- distance-checking for all 28 cells (including the boid's own cell)
+			- no quadrant-checking
+		- Implementation 2
+			- distance-checking for 9 cells
+			- quadrant-checking needed
+		- Implementation 3
+			- distance-checking for 27 cells, because it does not need to distance-check the boids in the same cell (they are definitely neighbors)
+			- no quadrant-checking
+	- I only did implementations based on conclusion 1 and 2. You can toggle the macro `IMPL_8` in `kernel.cu` to switch between them. In practice, they have similar performance even at 200k boids.
+	- All in all, I think implementation 2 is likely the winner, because the overhead of quadrant-checking is low, and it is probably worth saving the extra cost of distance checking.
 
 ## Performance Analysis
 - Framerate is used as the primary metric to measure performance
