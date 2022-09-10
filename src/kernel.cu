@@ -752,18 +752,22 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 
     // Rearrange array index buffer
     kernRearrangeIndexBuffer<< <fullBlocksPerGrid, blockSize >> >(numObjects, dev_particleArrayIndices, dev_pos, dev_vel1, dev_pos_buf, dev_vel_buf);
-    cudaMemcpy(dev_pos, dev_pos_buf, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(dev_vel1, dev_vel_buf, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
+    //cudaMemcpy(dev_pos, dev_pos_buf, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
+    //cudaMemcpy(dev_vel1, dev_vel_buf, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
 
     
     kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth,
-        gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos, dev_vel1, dev_vel2);
+        gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos_buf, dev_vel_buf, dev_vel2);
 
     // Update pos and ping-pong buffers are the same as above
-    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel2);
+    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos_buf, dev_vel2);
     glm::vec3* tmp = dev_vel1;
     dev_vel1 = dev_vel2;
     dev_vel2 = tmp;
+
+    tmp = dev_pos;
+    dev_pos = dev_pos_buf;
+    dev_pos_buf = tmp;
 }
 
 void Boids::endSimulation() {
