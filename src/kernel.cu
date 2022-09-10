@@ -497,6 +497,11 @@ __global__ void kernUnsetCoherentBuffers(int N, int* particleArrayIndices, glm::
     vel[particleArrayIndices[index]] = coherent_velIndices[index];
 }
 
+//under construction
+__device__ float findClosestDistance(float posX, float posY, float posZ, int gridId) {
+    return 0.0f;
+}
+
 __global__ void kernUpdateVelNeighborSearchCoherent(
   int N, int gridResolution, glm::vec3 gridMin,
   float inverseCellWidth, float cellWidth,
@@ -527,6 +532,9 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         for (float posY = pos[index].y - maxDistance; posY <= pos[index].y + maxDistance; posY += cellWidth) {
             for (float posX = pos[index].x - maxDistance; posX <= pos[index].x + maxDistance; posX += cellWidth) {
                 //first we did edge detection
+                //additional: so not for 8, but for grid looping in 27 or 64, there might be grids that are in the for loop but are not reached by the distance
+                //distance filter algo may add here
+
                 if (edgeDetection(posX, posY, posZ, gridMin, gridResolution, cellWidth)) {
                     int gridId = gridIndex3Dto1D(posX, posY, posZ, gridMin, gridResolution, inverseCellWidth);
                     if (gridId >= 0 && gridId < gridResolution * gridResolution * gridResolution) {
@@ -658,7 +666,7 @@ void Boids::stepSimulationCoherentGrid(float dt) {
     kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_coherent_pos, dev_coherent_vel1, dev_coherent_vel2);
     kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_coherent_pos, dev_coherent_vel2);
 
-    // - Ping-pong buffers as needed. THIS MAY BE DIFFERENT FROM BEFORE.
+    // - Ping-pong buffers as needed. THIS MAY BE DIFFERENT FROM BEFORE. So if its vel1->coherentVel1->coherentVel2->vel1, I think theres no need to put vel1 back to coherentVel2, for efficiency
     kernUnsetCoherentBuffers << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices, dev_coherent_pos, dev_coherent_vel2, dev_pos, dev_vel1);
 }
 
