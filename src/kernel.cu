@@ -328,12 +328,6 @@ __global__ void kernUpdatePos(int N, float dt, glm::vec3 *pos, glm::vec3 *vel) {
   thisPos.x = thisPos.x > scene_scale ? -scene_scale : thisPos.x;
   thisPos.y = thisPos.y > scene_scale ? -scene_scale : thisPos.y;
   thisPos.z = thisPos.z > scene_scale ? -scene_scale : thisPos.z;
-  float x = thisPos.x;
-  float y = thisPos.y;
-  float z = thisPos.z;
-  float x1 = vel[index].x;
-  float y1 = vel[index].y;
-  float z1 = vel[index].z; 
   pos[index] = thisPos;
 
 }
@@ -590,9 +584,6 @@ void Boids::stepSimulationNaive(float dt) {
     kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel2);
     checkCUDAErrorWithLine("kernUpdatePos failed!");
   // TODO-1.2 ping-pong the velocity buffers
-    /*glm::vec3 * velReplace = dev_vel2;
-    dev_vel2 = dev_vel1;
-    dev_vel1 = velReplace;*/
     std::swap(dev_vel1, dev_vel2);
 }
 
@@ -629,7 +620,6 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 
     //pingpong
     std::swap(dev_vel1, dev_vel2);
-
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
@@ -647,7 +637,6 @@ void Boids::stepSimulationCoherentGrid(float dt) {
   //   CONSIDER WHAT ADDITIONAL BUFFERS YOU NEED
   // - Perform velocity updates using neighbor search
   // - Update positions
-  
     dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
     kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos, dev_particleArrayIndices, dev_particleGridIndices);
     //thrust sort
