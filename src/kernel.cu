@@ -438,12 +438,6 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     return;
   }
 
-  glm::vec3 boidPos = pos[index];
-  glm::vec3 gridPos = glm::floor((boidPos - gridMin) * inverseCellWidth);
-  int gridX = gridPos.x;
-  int gridY = gridPos.y;
-  int gridZ = gridPos.z;
-
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
   int rule1Count = 0;
   glm::vec3 perceivedCenter(0);
@@ -455,12 +449,25 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int rule3Count = 0;
   glm::vec3 perceivedVel(0);
 
-  // Get neighbouring grid cells
-  // TODO: check 8 cells instead of 27
-  // TODO: optimize which order for for loop?
-  for (int x = imax(gridX - 1, 0); x <= imin(gridX + 1, gridResolution - 1); ++x) {
-    for (int y = imax(gridY - 1, 0); y <= imin(gridY + 1, gridResolution - 1); ++y) {
-      for (int z = imax(gridZ - 1, 0); z <= imin(gridZ + 1, gridResolution - 1); ++z) {
+  glm::vec3 boidPos = pos[index];
+  glm::vec3 gridPosExact = (boidPos - gridMin) * inverseCellWidth;
+  glm::vec3 gridPos = glm::floor(gridPosExact);
+  int gridX = gridPos.x;
+  int gridY = gridPos.y;
+  int gridZ = gridPos.z;
+
+  // Only check closest 8 neighbours, not all 27
+  glm::vec3 gridPosRelativeExact = gridPosExact - gridPos;
+  int xMin = gridPosRelativeExact.x < 0.5 ? imax(gridX - 1, 0) : gridX;
+  int yMin = gridPosRelativeExact.y < 0.5 ? imax(gridY - 1, 0) : gridY;
+  int zMin = gridPosRelativeExact.z < 0.5 ? imax(gridZ - 1, 0) : gridZ;
+  int xMax = gridPosRelativeExact.x >= 0.5 ? imin(gridX + 1, gridResolution - 1) : gridX;
+  int yMax = gridPosRelativeExact.y >= 0.5 ? imin(gridY + 1, gridResolution - 1) : gridY;
+  int zMax = gridPosRelativeExact.z >= 0.5 ? imin(gridZ+ 1, gridResolution - 1) : gridZ;
+
+  for (int z = zMin; z <= zMax; ++z) {
+    for (int y = yMin; y <= yMax; ++y) {
+      for (int x = xMin; x <= xMax; ++x) {
         int neighbourGridIndex = gridIndex3Dto1D(x, y, z, gridResolution);
         int startIndex = gridCellStartIndices[neighbourGridIndex];
         int endIndex = gridCellEndIndices[neighbourGridIndex];
