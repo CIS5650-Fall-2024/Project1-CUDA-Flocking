@@ -474,6 +474,10 @@ __global__ void kernUpdateVelNeighborSearchScattered(
         {
             int startIndex = gridCellStartIndices[indexToCheck[i]];
             int endIndex = gridCellEndIndices[indexToCheck[i]];
+            if (startIndex == -1)
+            {
+                continue;
+            }
             for (int j = startIndex; j < endIndex; ++j)
             {
                 int bIndex = particleArrayIndices[j];
@@ -598,6 +602,10 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         {
             int startIndex = gridCellStartIndices[indexToCheck[i]];
             int endIndex = gridCellEndIndices[indexToCheck[i]];
+            if (startIndex == -1 || endIndex == -1) 
+            {
+                continue;
+            }
             for (int j = startIndex; j < endIndex; ++j)
             {
                 if (j != index) 
@@ -675,11 +683,17 @@ void Boids::stepSimulationScatteredGrid(float dt) {
   // - Update positions
   // - Ping-pong buffers as needed
     dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+    dim3 cellCount((gridCellCount + blockSize - 1) / blockSize);
+
     kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos,
         dev_particleArrayIndices, dev_particleGridIndices);
     dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
     dev_thrust_particleArrayIndices = thrust::device_ptr<int>(dev_particleArrayIndices);
     thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
+
+    kernResetIntBuffer << <cellCount, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
+    kernResetIntBuffer << <cellCount, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
+
     kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
     kernUpdateVelNeighborSearchScattered << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth,
         gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_particleArrayIndices, dev_pos, dev_vel1, dev_vel2);
@@ -718,15 +732,26 @@ void Boids::stepSimulationCoherentGrid(float dt) {
   // - Update positions
   // - Ping-pong buffers as needed. THIS MAY BE DIFFERENT FROM BEFORE.
     dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+    dim3 cellCount((gridCellCount + blockSize - 1) / blockSize);
+
     kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos,
         dev_particleArrayIndices, dev_particleGridIndices);
+
     dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
     dev_thrust_particleArrayIndices = thrust::device_ptr<int>(dev_particleArrayIndices);
+
+
     thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
+    
+    kernResetIntBuffer << <cellCount, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
+    kernResetIntBuffer << <cellCount, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
+
+
     kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
     
+
     // Rearrange array index buffer
-    kernRearrangeIndexBuffer<<<fullBlocksPerGrid, blockSize >>>(numObjects, dev_particleArrayIndices, dev_pos, dev_vel1, dev_pos_buf, dev_vel_buf);
+    kernRearrangeIndexBuffer<< <fullBlocksPerGrid, blockSize >> >(numObjects, dev_particleArrayIndices, dev_pos, dev_vel1, dev_pos_buf, dev_vel_buf);
     cudaMemcpy(dev_pos, dev_pos_buf, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
     cudaMemcpy(dev_vel1, dev_vel_buf, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
 
