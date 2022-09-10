@@ -7,6 +7,8 @@
 #include "kernel.h"
 #include <device_launch_parameters.h>
 
+#define _1X_WIDTH_GRID_ 1
+
 // potentially useful for doing grid-based neighbor search
 #ifndef imax
 #define imax( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -151,7 +153,11 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // computing grid params
+  #if _1X_WIDTH_GRID_
+  gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  #else 
   gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  #endif
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -377,26 +383,36 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   // Update a boid's velocity using the uniform grid
   int currIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (currIdx >= N) { return; }
-  // - Identify the grid cell that this particle is in
+  // Identify the grid cell that this particle is in
   glm::vec3 posRelativeToGrid = pos[currIdx] - gridMin;
   glm::vec3 posInCell = posRelativeToGrid * inverseCellWidth;
   glm::vec3 posOfCell = glm::vec3(int(posInCell.x), int(posInCell.y), int(posInCell.z));
   int gridCellIdx = gridIndex3Dto1D(posOfCell.x, posOfCell.y, posOfCell.z, gridResolution);
   // Identify which cells may contain neighbors. This isn't always 8.
-  glm::vec3 posRelativeToCell = posRelativeToGrid - (posOfCell * cellWidth);
-  int xSearchDir = posRelativeToCell.x > cellWidth / 2 ? 1 : -1;
-  int ySearchDir = posRelativeToCell.y > cellWidth / 2 ? 1 : -1;
-  int zSearchDir = posRelativeToCell.z > cellWidth / 2 ? 1 : -1;
-
-  //For each cell, read the start/end indices in the boid pointer array.
   glm::vec3 perceivedCenter = glm::vec3(0.f);
   glm::vec3 c = glm::vec3(0.f);
   glm::vec3 perceivedVel = glm::vec3(0.f);
   int neighborInRule1Dist = 0;
   int neighborInRule3Dist = 0;
-  for (int x = 0; abs(x) <= abs(xSearchDir); ++x) {
-    for (int y = 0; abs(y) <= abs(ySearchDir); ++y) {
-      for (int z = 0; abs(z) <= abs(zSearchDir); ++z) {
+
+  
+  #if _1X_WIDTH_GRID_ // 27 neighbors
+    int xStart = -1; int xEnd = 1;
+    int yStart = -1; int yEnd = 1;
+    int zStart = -1; int zEnd = 1;
+  #else // 8 neighbors
+    int xStart = 0; int xEnd = 0;
+    int yStart = 0; int yEnd = 0;
+    int zStart = 0; int zEnd = 0;
+    glm::vec3 posRelativeToCell = posRelativeToGrid - (posOfCell * cellWidth);
+    if (posRelativeToCell.x < cellWidth / 2) { xStart = -1; } else { xEnd = 1; }
+    if (posRelativeToCell.y < cellWidth / 2) { yStart = -1; } else { yEnd = 1; }
+    if (posRelativeToCell.z < cellWidth / 2) { zStart = -1; } else { zEnd = 1; }
+  #endif
+  //For each cell, read the start/end indices in the boid pointer array.
+   for (int x = xStart; x <= xEnd; ++x) {
+    for (int y = yStart; y <= yEnd; ++y) {
+      for (int z = zStart; z <= zEnd; ++z) {
         int neighborCellIdx = gridCellIdx + 
           x + y * gridResolution + z * gridResolution * gridResolution;
         // gridRes ^ 3 == gridCellCount
@@ -480,8 +496,8 @@ void Boids::stepSimulationNaive(float dt) {
 void Boids::stepSimulationScatteredGrid(float dt) {
   // Uniform Grid Neighbor search using Thrust sort.
   dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
-  // - label each particle with its array index as well as its grid index.
-  //   Use 2x width grids. (should have already been done in init ?)
+  // label each particle with its array index as well as its grid index.
+  // Use 2x width grids. (should have already been done in init ?)
   kernComputeIndices<<<fullBlocksPerGrid, blockSize>>>(numObjects, gridSideCount,
     gridMinimum, gridInverseCellWidth, dev_pos, dev_particleArrayIndices,
     dev_particleGridIndices);
