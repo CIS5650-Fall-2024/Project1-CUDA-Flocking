@@ -14,11 +14,11 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
+#define UNIFORM_GRID 1
 #define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 16000;
+const int N_FOR_VIS = 256000;
 const float DT = 0.2f;
 
 /**
@@ -226,7 +226,7 @@ void initShaders(GLuint * program) {
     cudaEventElapsedTime(&execTime, start, end);
 
     avgExecTime = (avgExecTime * (frameCount - 1.0) + execTime) / frameCount;
-    expExecTime = glm::mix<double>(expExecTime, execTime, 0.001);
+    expExecTime = (frameCount < 1.5) ? execTime : glm::mix<double>(expExecTime, execTime, 0.5);
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
