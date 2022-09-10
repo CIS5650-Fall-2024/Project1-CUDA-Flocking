@@ -328,9 +328,19 @@ __global__ void kernComputeIndices(int N, int gridResolution,
   glm::vec3 gridMin, float inverseCellWidth,
   glm::vec3 *pos, int *indices, int *gridIndices) {
     // TODO-2.1
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index >= N) {
+        return; 
+    }; 
     // - Label each boid with the index of its grid cell.
+    int x = (int)(inverseCellWidth * (pos[index].x - gridMin.x)); 
+    int y = (int)(inverseCellWidth * (pos[index].y - gridMin.y));
+    int z = (int)(inverseCellWidth * (pos[index].z - gridMin.z));
+    int gridIndice = gridIndex3Dto1D(x, y, z, gridResolution); 
+    gridIndices[index] = gridIndice; 
     // - Set up a parallel array of integer indices as pointers to the actual
     //   boid data in pos and vel1/vel2
+    indices[index] = index; 
 }
 
 // LOOK-2.1 Consider how this could be useful for indicating that a cell
