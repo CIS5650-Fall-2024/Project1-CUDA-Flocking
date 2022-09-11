@@ -482,7 +482,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
             {
                 continue;
             }
-            for (int j = startIndex; j < endIndex; ++j)
+            for (int j = startIndex; j <= endIndex; ++j)
             {
                 int bIndex = particleArrayIndices[j];
                 if (bIndex != index)
@@ -497,7 +497,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
                     // For rule 2
                     if (dist < rule2Distance)
                     {
-                        c = c - (pos[bIndex] - bPos);
+                        c -= (pos[bIndex] - bPos);
                     }
                     // For rule 3
                     if (dist < rule3Distance)
@@ -565,7 +565,6 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 
     int xDir, yDir, zDir;
 
-
     // Checking closest side
     if (dist.x > (gridIndex3.x + 1) * cellWidth + 0.5 * cellWidth)
     {
@@ -611,13 +610,13 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         {
             int startIndex = gridCellStartIndices[indexToCheck[i]];
             int endIndex = gridCellEndIndices[indexToCheck[i]];
-            if (startIndex == -1 || endIndex == -1) 
+            if (startIndex == -1 || endIndex == -1)
             {
                 continue;
             }
-            for (int j = startIndex; j < endIndex; ++j)
+            for (int j = startIndex; j <= endIndex; ++j)
             {
-                if (j != index) 
+                if (j != index)
                 {
                     float dist = glm::distance(pos[j], bPos);
                     // For rule 1
@@ -641,6 +640,8 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
             }
         }
     }
+
+
 
     glm::vec3 v1 = glm::vec3(0.f, 0.f, 0.f);
     if (pc_count > 0)
@@ -713,14 +714,14 @@ void Boids::stepSimulationScatteredGrid(float dt) {
     dev_vel2 = tmp;
 }  
 
-__global__ void kernRearrangeIndexBuffer(int N, int* particleGridIndices, glm::vec3* pos, glm::vec3* vel1, glm::vec3* pos_buf, glm::vec3* vel_buf) 
+__global__ void kernRearrangeIndexBuffer(int N, int* particleArrayIndices, glm::vec3* pos, glm::vec3* vel1, glm::vec3* pos_buf, glm::vec3* vel_buf) 
 {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (index >= N) {
         return;
     }
-    pos_buf[index] = pos[particleGridIndices[index]];
-    vel_buf[index] = vel1[particleGridIndices[index]];
+    pos_buf[index] = pos[particleArrayIndices[index]];
+    vel_buf[index] = vel1[particleArrayIndices[index]];
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
@@ -756,7 +757,6 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 
     // Rearrange array index buffer
     kernRearrangeIndexBuffer<< <fullBlocksPerGrid, blockSize >> >(numObjects, dev_particleArrayIndices, dev_pos, dev_vel1, dev_pos_buf, dev_vel_buf);
-
     
     kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth,
         gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos_buf, dev_vel_buf, dev_vel2);
