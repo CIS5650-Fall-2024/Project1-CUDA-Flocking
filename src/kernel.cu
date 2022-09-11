@@ -615,6 +615,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
         if (speed > maxSpeed) {
             finalVel = finalVel * maxSpeed / speed;
         }
+        // printf("finalVel: x: %f, y: %f, z: %f \n", finalVel.x, finalVel.y, finalVel.z);
 
         vel2[selfIdx] = finalVel;
     }
@@ -685,7 +686,6 @@ __device__ glm::vec3 kernComputeVelocityChangeCoherent(int N, glm::vec3 gridMin,
                             // Rule 1
                             if (curIdx != iSelf && dist < rule1Distance) {
                                 center += posSorted[curIdx];
-                                // printf("pos1Sorted x: %f, y: %f, z: %f \n", posSorted[curIdx].x, posSorted[curIdx].y, posSorted[curIdx].z);
                                 numValid1 += 1;
                             }
 
@@ -751,6 +751,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         if (speed > maxSpeed) {
             finalVel = finalVel * maxSpeed / speed;
         }
+        // printf("finalVel: x: %f, y: %f, z: %f \n", finalVel.x, finalVel.y, finalVel.z);
 
         // vel2 is still the write buffer
         vel2[selfIdx] = finalVel;
@@ -881,10 +882,11 @@ void Boids::stepSimulationCoherentGrid(float dt) {
         dev_gridCellEndIndices, dev_posSorted, dev_vel1Sorted, dev_vel2);
 
     // update position per boid
-    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_posSorted, dev_vel1Sorted);
+    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_posSorted, dev_vel2);
 
     // ping pong
-    std::swap(dev_vel1Sorted, dev_vel2);
+    std::swap(dev_vel1, dev_vel2);
+    std::swap(dev_posSorted, dev_pos);
 }
 
 void Boids::endSimulation() {
