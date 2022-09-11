@@ -47,10 +47,18 @@ Each boid calculates the extremities of its reach by using its own radius and po
 the maximum and minimum of my desired cells to scan. Hence, the number of useless boid scans are reduced, resulting in a much
 faster simulation!
 
+![Uniform Boids Simulation](images/uniform.png)
+
+_Uniform Grid Flocking with 5,000 boids_
+
 #### Part 3. Coherent Grid Boids
 
 The third simulation builds on the second simulation. This time, we also rearrange the position and velocity information such that 
 boids that are in a cell together are also contiguous in memory. 
+
+![Coherent Boids Simulation](images/coherent.png)
+
+_Coherent Grid Flocking with 5,000 boids_
 
 ### Overall Performance Analysis
 
