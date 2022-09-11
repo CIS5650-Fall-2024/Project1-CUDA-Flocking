@@ -7,13 +7,18 @@ Project 1 - Flocking**
 
 ## Introduction
 
-In this project, I started to learn how to write CUDA kernel functions and how to invoke them. 
-The project simulates flocking behavior based on Craig Reynold's artificial life program, for which
-a SIGGRAPH paper was written in 1989.
+In this project, I simulate flocking behavior for a 200 x 200 x 200 cube of scattered boids by using CUDA kernel functions
+to calculate their position and velocity on each dT. Based on Craig Reynold's artificial life program, for which a SIGGRAPH paper was written in 1989,
+the following three behaviors are implemented:
+
+1. cohesion - boids move towards the perceived center of mass of their neighbors
+2. separation - boids avoid getting to close to their neighbors
+3. alignment - boids generally try to move with the same direction and speed as
+their neighbors
+
+In the simulation results, the color of each particle is a representation of its velocity.
 
 ## Part 1. Naive Boids Simulation
-
-
 
 Include screenshots, analysis, etc. (Remember, this is public, so don't put
 anything here that you don't want to share with the world.)
