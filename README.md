@@ -111,7 +111,7 @@ Searching 27 cells is another great optimization. Not only this applies to coher
 
 My explanation is based on observation and my pervious assumption:
 
-- The width of space we search becomes 3/4 as before. When boids is super dense in the grids, the time of global memory access becomes 27/64, less than a half as before.
+- The width of space we search becomes 3/4 as before. When boids are super dense in the grids, the time of global memory access becomes 27/64, less than a half as before.
 
 ![](./images/illust_8_27.png)
 
