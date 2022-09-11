@@ -10,15 +10,15 @@
 
 ![](./images/256K.gif)
 
-<center>256K particles</center>
+<div align="center">256K particles</div>
 
 ![](./images/2M.gif)
 
-<center>70 fps with 2M particles. Real time!</center>
+<div align="center">70 fps with 2M particles. Real time!</div>
 
 ![](./images/16M.png)
 
-<center>Even 16384000 particles it bares!</center>
+<div align="center">Even 16384000 particles it bares!</div>
 
 ## Performance Analysis
 
