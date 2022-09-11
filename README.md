@@ -5,7 +5,7 @@ Project 1 - Flocking**
   *  [LinkedIn](https://www.linkedin.com/in/hanlin-sun-7162941a5/)
   *  [personal website](https://hanlinsun.github.io/)
 * Tested on:  Windows 10, i7-8750H @ 2.21GHz 32GB, NVIDIA Quadro P3200
-* 
+
 ### ReadMe:
 
 Demo:
