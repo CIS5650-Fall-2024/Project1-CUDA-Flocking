@@ -25,37 +25,27 @@ To measure the performance of my code, I ran my program on release mode with VSy
 three implementations: with the first being naive neighbor search, and each subsequent part 
 utilizing more optimizations.
 
-### Part 1. Naive Boids Simulation
+#### Part 1. Naive Boids Simulation
 
 The first simulation is a naive neighbor search, where each boid searches every other boid in existence and checks 
 whether they are within distance for cohesion, separation, or alignment. If a non-self boid is within any such distance,
 then its position and velocity will be taken into account for the respective rule. 
 
-* For each implementation, how does changing the number of boids affect
-performance? Why do you think this is?
+#### Part 2. Uniform Grid Boids
 
-* For each implementation, how does changing the block count and block size
-affect performance? Why do you think this is?
+The second simulation is a neighbor search that takes into account the largest neighborhood distance among the 3 rules. 
+The simulation space is divided into grid cubes. Using these cubes, Each boid only needs to check the cubes that overlap
+with its spherical neighborhood.
 
-Include screenshots, analysis, etc. (Remember, this is public, so don't put
-anything here that you don't want to share with the world.)
+Each boid calculates the extremities of its reach by using its own radius and position. With these extremities, I can calculate
+the maximum and minimum of my desired cells to scan. Hence, the number of useless boid scans are reduced, resulting in a much
+faster simulation!
 
-### Part 2. Uniform Grid Boids
-* For each implementation, how does changing the number of boids affect
-performance? Why do you think this is?
-
-* For each implementation, how does changing the block count and block size
-affect performance? Why do you think this is?
-
-* Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
-Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
-that 27-cell is slower simply because there are more cells to check!
-
-Include screenshots, analysis, etc. (Remember, this is public, so don't put
-anything here that you don't want to share with the world.)
+#### Part 3. Coherent Grid Boids
 
 
-### Part 3. Coherent Grid Boids
+### Overall Performance Analysis
+
 * For each implementation, how does changing the number of boids affect
 performance? Why do you think this is?
 
@@ -69,11 +59,6 @@ Why or why not?
 * Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
 Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
 that 27-cell is slower simply because there are more cells to check!
-
-Include screenshots, analysis, etc. (Remember, this is public, so don't put
-anything here that you don't want to share with the world.)
-
-### Overall Performance Comparison
 
 ## Part 3: Performance Analysis
 For this project, we will guide you through your performance analysis with some
