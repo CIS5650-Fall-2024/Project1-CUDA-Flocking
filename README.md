@@ -26,7 +26,7 @@ utilizing more optimizations.
 ### Part 1. Naive Boids Simulation
 
 The first simulation is a naive neighbor search, where each boid searches every other boid in existence and checks 
-whether they are within distance for cohesion, separation, or alignment. If a non-self boid is within the distance,
+whether they are within distance for cohesion, separation, or alignment. If a non-self boid is within any such distance,
 then its position and velocity will be taken into account for the respective rule. 
 
 * For each implementation, how does changing the number of boids affect
