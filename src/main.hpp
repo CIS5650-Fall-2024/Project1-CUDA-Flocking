@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <iomanip>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cuda_runtime.h>
@@ -36,7 +37,7 @@ const float fovy = (float) (PI / 4);
 const float zNear = 0.10f;
 const float zFar = 10.0f;
 // LOOK-1.2: for high DPI displays, you may want to double these settings.
-int width = 1280;
+int width = 1080;
 int height = 720;
 int pointSize = 2;
 
