@@ -33,7 +33,7 @@ The first simulation is a naive neighbor search, where each boid searches every 
 whether they are within distance for cohesion, separation, or alignment. If a non-self boid is within any such distance,
 then its position and velocity will be taken into account for the respective rule. 
 
-![Naive Boids Simulation](images/naive2.png)
+![Naive Boids Simulation](images/naive.gif)
 
 _Naive Grid Flocking with 5,000 boids_
 
@@ -47,7 +47,7 @@ Each boid calculates the extremities of its reach by using its own radius and po
 the maximum and minimum of my desired cells to scan. Hence, the number of useless boid scans are reduced, resulting in a much
 faster simulation!
 
-![Uniform Boids Simulation](images/uniform.png)
+![Uniform Boids Simulation](images/uniform.gif)
 
 _Uniform Grid Flocking with 5,000 boids_
 
@@ -56,7 +56,7 @@ _Uniform Grid Flocking with 5,000 boids_
 The third simulation builds on the second simulation. This time, we also rearrange the position and velocity information such that 
 boids that are in a cell together are also contiguous in memory. 
 
-![Coherent Boids Simulation](images/coherent.png)
+![Coherent Boids Simulation](images/coherent.gif)
 
 _Coherent Grid Flocking with 5,000 boids_
 
