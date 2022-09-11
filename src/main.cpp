@@ -15,10 +15,10 @@
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
 #define UNIFORM_GRID 1
-#define COHERENT_GRID 0
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 50000;
+const int N_FOR_VIS = 9856;
 const float DT = 0.2f;
 unsigned int steps_in_run = 0;
 
@@ -222,6 +222,11 @@ void mainLoop() {
 	float fps = 0.f;
 	float refreshTimer = 0.f;
 	int frameCount = 0;
+	float timer = 0.f;
+	int frameCount2 = 0;
+	float _startTime = 1.f;
+	bool _startFlag = false;
+	bool _printFlag = false;
 
 
 	//Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
@@ -234,6 +239,7 @@ void mainLoop() {
 		float time = static_cast<float>(glfwGetTime());
 		float dt = time - lastTime;
 		refreshTimer += dt;
+		timer += dt;
 		if (refreshTimer > 0.5f) {
 			fps = frameCount / refreshTimer;
 			refreshTimer = 0.f;
@@ -247,6 +253,18 @@ void mainLoop() {
 			ss << steps_in_run;
 			ss << " steps] " << deviceName;
 			glfwSetWindowTitle(window, ss.str().c_str());
+			//std::cout << timer << "    " << fps << std::endl;
+		}
+		if (timer >= 1.f && timer < 11.f) {
+			if (!_startFlag) {
+				_startFlag = true;
+				_startTime = timer;
+			}
+			frameCount2++;
+		}
+		else if (timer >= 11.f && !_printFlag) {
+			_printFlag = true;
+			std::cout << "Average FPS from 1-11: " << (frameCount2 / (timer - _startTime));
 		}
 		if (!initFlag) {
 			runCUDA(dt);

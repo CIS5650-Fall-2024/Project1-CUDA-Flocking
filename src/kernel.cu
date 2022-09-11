@@ -157,10 +157,10 @@ void Boids::initSimulation(int N) {
 	checkCUDAErrorWithLine("cudaMalloc dev_vel2 failed!");
 
 	// LOOK-1.2 - This is a typical CUDA kernel invocation.
-	kernGenerateRandomArray <<<fullBlocksPerGrid, blockSize>>> (time(NULL), numObjects,
+	kernGenerateRandomArray <<<fullBlocksPerGrid, blockSize>>> (/*time(NULL)*/1, numObjects,
 		dev_pos1, scene_scale);
 	checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
-	kernGenerateRandomArray <<<fullBlocksPerGrid, blockSize>>> (time(NULL), numObjects,
+	kernGenerateRandomArray <<<fullBlocksPerGrid, blockSize>>> (/*time(NULL)*/1, numObjects,
 		dev_vel1, maxSpeed);
 	checkCUDAErrorWithLine("kernGenerateRandomVelArray failed!");
 
@@ -570,12 +570,12 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 	//float y0 = glm::value_ptr(vel1[idx])[1];
 	//float z0 = glm::value_ptr(vel1[idx])[2];
 
-	//if (x < halfCellWidth && cellCoord.x > 0)              searchX = -1;
-	//if (x >= halfCellWidth && cellCoord.x < sideCount - 1) searchX = 1;
-	//if (y < halfCellWidth && cellCoord.y > 0)              searchY = -1;
-	//if (y >= halfCellWidth && cellCoord.y < sideCount - 1) searchY = 1;
-	//if (z < halfCellWidth && cellCoord.z > 0)              searchZ = -1;
-	//if (z >= halfCellWidth && cellCoord.z < sideCount - 1) searchZ = 1;
+	if (x < halfCellWidth && cellCoord.x > 0)              searchX = -1;
+	if (x >= halfCellWidth && cellCoord.x < sideCount - 1) searchX = 1;
+	if (y < halfCellWidth && cellCoord.y > 0)              searchY = -1;
+	if (y >= halfCellWidth && cellCoord.y < sideCount - 1) searchY = 1;
+	if (z < halfCellWidth && cellCoord.z > 0)              searchZ = -1;
+	if (z >= halfCellWidth && cellCoord.z < sideCount - 1) searchZ = 1;
 
 	float sideCount2 = sideCount * sideCount;
 	if (searchX != 0)
@@ -686,45 +686,13 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 		dev_boidGridIndices);
 
 	thrust::sort_by_key(*dev_thrust_boidGridIndices, *dev_thrust_boidGridIndices + numObjects, *dev_thrust_boidArrayIndices);
-	kernRearrangePosVel <<<fullBlocksPerGrid, blockSize>>> (numObjects, dev_boidArrayIndices, dev_pos1, dev_pos2, dev_vel1, dev_vel2);
-	std::swap(dev_pos1, dev_pos2);
+	kernRearrangePosVel << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_boidArrayIndices, dev_pos1, dev_pos2, dev_vel1, dev_vel2);
 	std::swap(dev_vel1, dev_vel2);
-	//std::unique_ptr<glm::vec3[]> position{ new glm::vec3[numObjects] };
-	//std::unique_ptr<glm::vec3[]> velosity{ new glm::vec3[numObjects] };
-	//cudaMemcpy(position.get(), dev_pos1, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToHost);
-	//cudaMemcpy(velosity.get(), dev_vel1, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToHost);
+	std::swap(dev_pos1, dev_pos2);
 
-	//for (int i = 0; i < numObjects; i++) {
-	//	std::cout << position[i].x << " " << position[i].y << " " << position[i].z << std::endl;
-	//	std::cout << velosity[i].x << " " << velosity[i].y << " " << velosity[i].z << std::endl;
-	//}
 	kernResetIntBuffer <<<fullBlocksPerGrid, blockSize>>> (numObjects, dev_gridCellStartIndices, -1);
 	kernResetIntBuffer <<<fullBlocksPerGrid, blockSize>>> (numObjects, dev_gridCellEndIndices, -1);
 	kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_boidGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
-	/*std::unique_ptr<int[]> gridIndices{ new int[numObjects] };
-	std::unique_ptr<glm::vec3[]> position{ new glm::vec3[numObjects] };
-	std::unique_ptr<int[]> start{ new int[gridCellCount] };
-	std::unique_ptr<int[]> end{ new int[gridCellCount] };
-	cudaMemcpy(gridIndices.get(), dev_boidGridIndices, sizeof(int) * numObjects, cudaMemcpyDeviceToHost);
-	cudaMemcpy(position.get(), dev_pos1, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToHost);
-	cudaMemcpy(start.get(), dev_gridCellStartIndices, sizeof(int) * numObjects, cudaMemcpyDeviceToHost);
-	cudaMemcpy(end.get(), dev_gridCellEndIndices, sizeof(int) * numObjects, cudaMemcpyDeviceToHost);
-	checkCUDAErrorWithLine("memcpy back failed!");
-
-	for (int i = 0; i < gridCellCount; i++) {
-		if (start[i] == -1 || end[i] == -1) continue;
-		std::cout << "Cell[" << i << "]: " << start[i] << " : " << end[i] << std::endl;
-		int x = i % gridSideCount;
-		int y = ((i - x) / gridSideCount) % gridSideCount;
-		int z = (i - x - y * gridSideCount) / (gridSideCount * gridSideCount);
-		std::cout << "Cell coord: " << x << " " << y << " " << z << std::endl;
-		for (int ii = start[i]; ii <= end[i]; ii++) {
-			std::cout << "\tCell in record:" << gridIndices[ii] << std::endl;
-			glm::vec3 pos = position[ii];
-			std::cout << "\tBoid position:" << pos.x << " " << pos.y << " " << pos.z << std::endl;
-			std::cout << std::endl;
-		}
-	}*/
 
 	kernUpdateVelNeighborSearchCoherent <<<fullBlocksPerGrid, blockSize >>> (
 		numObjects, gridSideCount, gridMinimum, gridinverseCellWidth, gridCellWidth, halfGridCellWidth, dev_gridCellStartIndices,
