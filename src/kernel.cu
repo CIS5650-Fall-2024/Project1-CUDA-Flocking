@@ -616,7 +616,6 @@ __global__ void kernUpdateVelNeighborSearchScattered(
         if (speed > maxSpeed) {
             finalVel = finalVel * maxSpeed / speed;
         }
-        // printf("finalVel: x: %f, y: %f, z: %f \n", finalVel.x, finalVel.y, finalVel.z);
 
         vel2[selfIdx] = finalVel;
     }
