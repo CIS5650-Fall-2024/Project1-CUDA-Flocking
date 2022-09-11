@@ -43,6 +43,8 @@ faster simulation!
 
 #### Part 3. Coherent Grid Boids
 
+The third simulation builds on the second simulation. This time, we also rearrange the position and velocity information such that 
+boids that are in a cell together are also contiguous in memory. 
 
 ### Overall Performance Analysis
 
