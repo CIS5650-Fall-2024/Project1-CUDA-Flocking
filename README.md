@@ -19,6 +19,7 @@ their neighbors
 In the simulation results, the color of each particle is a representation of its velocity.
 
 ![Coherent Grid Flocking with 50,000 boids](images/headerResized.gif)
+Coherent Grid Flocking with 50,000 boids
 
 ## Results and Performance Analysis
 To measure the performance of my code, I ran my program on release mode with VSync disabled. There are 
