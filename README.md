@@ -65,8 +65,12 @@ _Coherent Grid Flocking with 5,000 boids_
 * For each implementation, how does changing the number of boids affect
 performance? Why do you think this is?
 
+![Graph 1](images/graph1.png)
+
 * For each implementation, how does changing the block count and block size
 affect performance? Why do you think this is?
+
+![Graph 2](images/graph2.png)
 
 * For the coherent uniform grid: did you experience any performance improvements
 with the more coherent uniform grid? Was this the outcome you expected?
