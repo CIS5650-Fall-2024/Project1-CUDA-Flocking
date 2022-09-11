@@ -5,6 +5,8 @@ Project 1 - Flocking**
   * (TODO) [LinkedIn](), [personal website](), [twitter](), etc.
 * Tested on: Windows 11, i7-12700H @ 2.30GHz 32GB, NVIDIA GeForce RTX 3050 Ti
 
+![Coherent Grid Flocking with 50,000 boids](images/header2.gif)
+
 ## Introduction
 
 In this project, I simulate flocking behavior for a 200 x 200 x 200 cube of scattered boids by using CUDA kernel functions
