@@ -18,10 +18,25 @@ their neighbors
 
 In the simulation results, the color of each particle is a representation of its velocity.
 
-## Part 1. Naive Boids Simulation
+## Results and Performance Analysis
+To measure the performance of my code, I ran my program on release mode with VSync disabled. Each of the following
+parts are a slightly different implementation, with the first being naive neighbor search, and each subsequent part 
+utilizing more optimizations.
+
+### Part 1. Naive Boids Simulation
 
 Include screenshots, analysis, etc. (Remember, this is public, so don't put
 anything here that you don't want to share with the world.)
+
+### Part 2. Uniform Grid Boids
+Include screenshots, analysis, etc. (Remember, this is public, so don't put
+anything here that you don't want to share with the world.)
+
+### Part 3. Coherent Grid Boids
+Include screenshots, analysis, etc. (Remember, this is public, so don't put
+anything here that you don't want to share with the world.)
+
+### Overall Performance Comparison
 
 ## Part 3: Performance Analysis
 For this project, we will guide you through your performance analysis with some
