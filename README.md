@@ -1,9 +1,9 @@
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture,
 Project 1 - Flocking**
 
-* (TODO) YOUR NAME HERE
-  * (TODO) [LinkedIn](), [personal website](), [twitter](), etc.
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* Shineng Tang
+  * [LinkedIn](https://www.linkedin.com/in/shineng-t-224192195/)
+* Tested on: Windows 11, i9-10900k @3.7GHz 32GB, RTX 3090 24GB
 
 ### (TODO: Your README)
 
