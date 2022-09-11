@@ -752,8 +752,6 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 
     // Rearrange array index buffer
     kernRearrangeIndexBuffer<< <fullBlocksPerGrid, blockSize >> >(numObjects, dev_particleArrayIndices, dev_pos, dev_vel1, dev_pos_buf, dev_vel_buf);
-    //cudaMemcpy(dev_pos, dev_pos_buf, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
-    //cudaMemcpy(dev_vel1, dev_vel_buf, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
 
     
     kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth,
