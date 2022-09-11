@@ -20,9 +20,6 @@ In the simulation results, the color of each particle is a representation of its
 
 ![Coherent Grid Flocking with 50,000 boids](images/headerResized.gif)
 
-![Coherent Grid Flocking with 50,000 boids](images/header2.gif)
-
-
 ## Results and Performance Analysis
 To measure the performance of my code, I ran my program on release mode with VSync disabled. There are 
 three implementations: with the first being naive neighbor search, and each subsequent part 
