@@ -14,7 +14,7 @@
 
 ![Simulation of 50000 boids](./images/1.2-50000.gif)
 
-### Scattered grids, 50,000 boids, 144 fps
+### Scattered grids, 50,000 boids, 144+ fps
 
 ![Simulation of 50000 boids](./images/2.1-50000.gif)
 
@@ -42,7 +42,7 @@ I use the average FPS over 1-10 secs to represent the performance of the applica
 
 ### Average FPS Impacted by the CUDA Block Size
 
-Tested in coherent grids. The boids number is 1,00,0000. 
+Tested in coherent grids. The boids number is 1,000,000. 
 
 ![Average FPS Impacted by the Boids Number](./images/block-size.png)
 
