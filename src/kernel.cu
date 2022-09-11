@@ -435,17 +435,19 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int *gridCellStartIndices, int *gridCellEndIndices,
   int *particleArrayIndices,
   glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2) {
+    // TODO-2.1 - Update a boid's velocity using the uniform grid to reduce
+    // the number of boids that need to be checked.
     int index = threadIdx.x + (blockIdx.x * blockDim.x);
     if (index >= N) {
         return;
     }
-    // TODO-2.1 - Update a boid's velocity using the uniform grid to reduce
-    // the number of boids that need to be checked.
-    // - Identify the grid cell that this particle is in
     int boidIndex = particleArrayIndices[index];
     glm::vec3 boidPos = pos[boidIndex];
     glm::vec3 boidVel = vel1[boidIndex];
 
+    // - Identify the grid cell that this particle is in
+    // iX, iY, iZ represent the grid cell's 3D index
+    // fractX, fractY, fractZ help determine where in the cell the boid is located
     int iX = glm::floor((boidPos.x - gridMin.x) * inverseCellWidth);
     int iY = glm::floor((boidPos.y - gridMin.y) * inverseCellWidth);
     int iZ = glm::floor((boidPos.z - gridMin.z) * inverseCellWidth);
@@ -453,7 +455,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     float fractY = glm::fract((boidPos.y - gridMin.y) * inverseCellWidth);
     float fractZ = glm::fract((boidPos.z - gridMin.z) * inverseCellWidth);
   
-    int gridCellNeighbors[8];
+    // Determine which directions to check
     int signX = 1;
     int signY = 1;
     int signZ = 1;
@@ -461,36 +463,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     if (fractY < 0.5) signY = -1;
     if (fractZ < 0.5) signZ = -1;
 
-    // - Identify which cells may contain neighbors. This isn't always 8.
-    int neighborIdx = 0;
-    int cellCount = gridResolution * gridResolution * gridResolution;
-
-    int zstart = imin(iZ, iZ + signZ);
-    int zend = imax(iZ, iZ + signZ);
-    int ystart = imin(iY, iY + signY);
-    int yend = imax(iY, iY + signY);
-    int xstart = imin(iX, iX + signX);
-    int xend = imax(iX, iX + signX);
-    for (int z = zstart; z <= zend; ++z)
-    {
-        for (int y = ystart; y <= yend; ++y)
-        {
-            for (int x = xstart; x <= xend; ++x)
-            {
-                int gridCellNeighbor = gridIndex3Dto1D(x, y, z, gridResolution);
-                if (gridCellNeighbor >= 0 && gridCellNeighbor < cellCount) {
-                    gridCellNeighbors[neighborIdx] = gridCellNeighbor;
-                }
-                else {
-                    gridCellNeighbors[neighborIdx] = -1;
-                }
-                ++neighborIdx;
-            }
-        }
-    }
-    
-    // - Access each boid in the cell and compute velocity change from
-    //   the boids rules, if this boid is within the neighborhood distance.
+    // Initialize variables for calculating velocity change rules
     glm::vec3 ruleOnePerceivedCenter(0.0f, 0.0f, 0.0f);     // cohesion
     glm::vec3 ruleTwoDistance(0.0f, 0.0f, 0.0f);            // separation
     glm::vec3 ruleThreePerceivedVelocity(0.0f, 0.0f, 0.0f); // alignment
@@ -501,45 +474,63 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
     int ruleOneNeighborCount = 0;
     int ruleThreeNeighborCount = 0;
+    int cellCount = gridResolution * gridResolution * gridResolution;
 
-    for (int i = 0; i < 8; ++i)
+    // - Identify which cells may contain neighbors. This isn't always 8.
+    int zstart = imin(iZ, iZ + signZ);
+    int zend = imax(iZ, iZ + signZ);
+    int ystart = imin(iY, iY + signY);
+    int yend = imax(iY, iY + signY);
+    int xstart = imin(iX, iX + signX);
+    int xend = imax(iX, iX + signX);
+
+    // Check at most 8 cells surrounding the current cell
+    for (int z = zstart; z <= zend; ++z)
     {
-        int gridCellNeighborIndex = gridCellNeighbors[i];
-        if (gridCellNeighborIndex < 0) continue;
-
-        // - For each cell, read the start/end indices in the boid pointer array.
-        int start = gridCellStartIndices[gridCellNeighbors[i]];
-        int end = gridCellEndIndices[gridCellNeighbors[i]];
-        if (start < 0 || end < 0) continue;
-
-        for (int j = start; j <= end; ++j)
+        for (int y = ystart; y <= yend; ++y)
         {
-            int b = particleArrayIndices[j];
-            if (b == boidIndex) continue;
-            float distance = glm::length(boidPos - pos[b]);
-
-            // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-            if (distance < rule1Distance)
+            for (int x = xstart; x <= xend; ++x)
             {
-                ruleOnePerceivedCenter += pos[b];
-                ++ruleOneNeighborCount;
-            }
+                int gridCellNeighborIndex = gridIndex3Dto1D(x, y, z, gridResolution);
+                if (gridCellNeighborIndex < 0 || gridCellNeighborIndex >= cellCount) continue;
 
-            // Rule 2: boids try to stay a distance d away from each other
-            if (distance < rule2Distance)
-            {
-                ruleTwoDistance -= pos[b] - boidPos;
-            }
+                // - Access each boid in the cell and compute velocity change from
+                //   the boids rules, if this boid is within the neighborhood distance.          
+                // - For each cell, read the start/end indices in the boid pointer array.
+                int start = gridCellStartIndices[gridCellNeighborIndex];
+                int end = gridCellEndIndices[gridCellNeighborIndex];
+                if (start < 0 || end < 0) continue;
 
-            // Rule 3: boids try to match the speed of surrounding boids
-            if (distance < rule3Distance)
-            {
-                ruleThreePerceivedVelocity += vel1[b];
-                ++ruleThreeNeighborCount;
+                for (int j = start; j <= end; ++j)
+                {
+                    int b = particleArrayIndices[j];
+                    if (b == boidIndex) continue;
+                    float distance = glm::length(boidPos - pos[b]);
+
+                    // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+                    if (distance < rule1Distance)
+                    {
+                        ruleOnePerceivedCenter += pos[b];
+                        ++ruleOneNeighborCount;
+                    }
+
+                    // Rule 2: boids try to stay a distance d away from each other
+                    if (distance < rule2Distance)
+                    {
+                        ruleTwoDistance -= pos[b] - boidPos;
+                    }
+
+                    // Rule 3: boids try to match the speed of surrounding boids
+                    if (distance < rule3Distance)
+                    {
+                        ruleThreePerceivedVelocity += vel1[b];
+                        ++ruleThreeNeighborCount;
+                    }
+                }
             }
         }
     }
-
+    
     if (ruleOneNeighborCount > 0)
     {
         ruleOnePerceivedCenter /= ruleOneNeighborCount;
@@ -598,18 +589,20 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   float inverseCellWidth, float cellWidth,
   int *gridCellStartIndices, int *gridCellEndIndices,
   glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2) {
-    int index = threadIdx.x + (blockIdx.x * blockDim.x);
-    if (index >= N) {
-        return;
-    }
     // TODO-2.3 - This should be very similar to kernUpdateVelNeighborSearchScattered,
     // except with one less level of indirection.
     // This should expect gridCellStartIndices and gridCellEndIndices to refer
     // directly to pos and vel1.
-    // - Identify the grid cell that this particle is in
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    if (index >= N) {
+        return;
+    }
     glm::vec3 boidPos = pos[index];
     glm::vec3 boidVel = vel1[index];
 
+    // - Identify the grid cell that this particle is in
+    // iX, iY, iZ represent the grid cell's 3D index
+    // fractX, fractY, fractZ help determine where in the cell the boid is located
     int iX = glm::floor((boidPos.x - gridMin.x) * inverseCellWidth);
     int iY = glm::floor((boidPos.y - gridMin.y) * inverseCellWidth);
     int iZ = glm::floor((boidPos.z - gridMin.z) * inverseCellWidth);
@@ -617,7 +610,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     float fractY = glm::fract((boidPos.y - gridMin.y) * inverseCellWidth);
     float fractZ = glm::fract((boidPos.z - gridMin.z) * inverseCellWidth);
 
-    int gridCellNeighbors[8];
+    // Determine which directions to check
     int signX = 1;
     int signY = 1;
     int signZ = 1;
@@ -625,37 +618,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     if (fractY < 0.5) signY = -1;
     if (fractZ < 0.5) signZ = -1;
 
-    // - Identify which cells may contain neighbors. This isn't always 8.
-    int neighborIdx = 0;
-    int cellCount = gridResolution * gridResolution * gridResolution;
-
-    int zstart = imin(iZ, iZ + signZ);
-    int zend = imax(iZ, iZ + signZ);
-    int ystart = imin(iY, iY + signY);
-    int yend = imax(iY, iY + signY);
-    int xstart = imin(iX, iX + signX);
-    int xend = imax(iX, iX + signX);
-    for (int z = zstart; z <= zend; ++z)
-    {
-        for (int y = ystart; y <= yend; ++y)
-        {
-            for (int x = xstart; x <= xend; ++x)
-            {
-                int gridCellNeighbor = gridIndex3Dto1D(x, y, z, gridResolution);
-                if (gridCellNeighbor >= 0 && gridCellNeighbor < cellCount) {
-                    gridCellNeighbors[neighborIdx] = gridCellNeighbor;
-                }
-                else {
-                    gridCellNeighbors[neighborIdx] = -1;
-                }
-                ++neighborIdx;
-            }
-        }
-    }
-
-    // - For each cell, read the start/end indices in the boid pointer array.
-    //   DIFFERENCE: For best results, consider what order the cells should be
-    //   checked in to maximize the memory benefits of reordering the boids data.
+    // Initialize variables for calculating velocity change rules
     glm::vec3 ruleOnePerceivedCenter(0.0f, 0.0f, 0.0f);     // cohesion
     glm::vec3 ruleTwoDistance(0.0f, 0.0f, 0.0f);            // separation
     glm::vec3 ruleThreePerceivedVelocity(0.0f, 0.0f, 0.0f); // alignment
@@ -666,41 +629,60 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 
     int ruleOneNeighborCount = 0;
     int ruleThreeNeighborCount = 0;
+    int cellCount = gridResolution * gridResolution * gridResolution;
 
-    for (int i = 0; i < 8; ++i)
+    // - Identify which cells may contain neighbors. This isn't always 8.
+    int zstart = imin(iZ, iZ + signZ);
+    int zend = imax(iZ, iZ + signZ);
+    int ystart = imin(iY, iY + signY);
+    int yend = imax(iY, iY + signY);
+    int xstart = imin(iX, iX + signX);
+    int xend = imax(iX, iX + signX);
+
+    // Check at most 8 cells surrounding the current cell
+    for (int z = zstart; z <= zend; ++z)
     {
-        int gridCellNeighborIndex = gridCellNeighbors[i];
-        if (gridCellNeighborIndex < 0) continue;
-
-        int start = gridCellStartIndices[gridCellNeighbors[i]];
-        int end = gridCellEndIndices[gridCellNeighbors[i]];
-        if (start < 0 || end < 0) continue;
-
-        // - Access each boid in the cell and compute velocity change from
-        //   the boids rules, if this boid is within the neighborhood distance.
-        for (int j = start; j <= end; ++j)
+        for (int y = ystart; y <= yend; ++y)
         {
-            if (j == index) continue;
-            float distance = glm::length(boidPos - pos[j]);
-
-            // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-            if (distance < rule1Distance)
+            for (int x = xstart; x <= xend; ++x)
             {
-                ruleOnePerceivedCenter += pos[j];
-                ++ruleOneNeighborCount;
-            }
+                int gridCellNeighborIndex = gridIndex3Dto1D(x, y, z, gridResolution);
+                if (gridCellNeighborIndex < 0 || gridCellNeighborIndex >= cellCount) continue;
+                
+                // - For each cell, read the start/end indices in the boid pointer array.
+                //   DIFFERENCE: For best results, consider what order the cells should be
+                //   checked in to maximize the memory benefits of reordering the boids data.
+                int start = gridCellStartIndices[gridCellNeighborIndex];
+                int end = gridCellEndIndices[gridCellNeighborIndex];
+                if (start < 0 || end < 0) continue;
 
-            // Rule 2: boids try to stay a distance d away from each other
-            if (distance < rule2Distance)
-            {
-                ruleTwoDistance -= pos[j] - boidPos;
-            }
+                // - Access each boid in the cell and compute velocity change from
+                //   the boids rules, if this boid is within the neighborhood distance.
+                for (int j = start; j <= end; ++j)
+                {
+                    if (j == index) continue;
+                    float distance = glm::length(boidPos - pos[j]);
 
-            // Rule 3: boids try to match the speed of surrounding boids
-            if (distance < rule3Distance)
-            {
-                ruleThreePerceivedVelocity += vel1[j];
-                ++ruleThreeNeighborCount;
+                    // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+                    if (distance < rule1Distance)
+                    {
+                        ruleOnePerceivedCenter += pos[j];
+                        ++ruleOneNeighborCount;
+                    }
+
+                    // Rule 2: boids try to stay a distance d away from each other
+                    if (distance < rule2Distance)
+                    {
+                        ruleTwoDistance -= pos[j] - boidPos;
+                    }
+
+                    // Rule 3: boids try to match the speed of surrounding boids
+                    if (distance < rule3Distance)
+                    {
+                        ruleThreePerceivedVelocity += vel1[j];
+                        ++ruleThreeNeighborCount;
+                    }
+                }
             }
         }
     }
