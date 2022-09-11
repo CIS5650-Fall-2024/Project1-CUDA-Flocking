@@ -255,9 +255,14 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
-  glm::vec3 perceived_center(0.0f, 0.0f, 0.0f);
-  glm::vec3 displacement(0.0f, 0.0f, 0.0f);
-  glm::vec3 perceived_velocity(0.0f, 0.0f, 0.0f);
+  glm::vec3 ruleOnePerceivedCenter(0.0f, 0.0f, 0.0f);     // cohesion
+  glm::vec3 ruleTwoDistance(0.0f, 0.0f, 0.0f);            // separation
+  glm::vec3 ruleThreePerceivedVelocity(0.0f, 0.0f, 0.0f); // alignment
+
+  glm::vec3 ruleOneVelocity(0.0, 0.0, 0.0);
+  glm::vec3 ruleTwoVelocity(0.0, 0.0, 0.0);
+  glm::vec3 ruleThreeVelocity(0.0, 0.0, 0.0);
+
   int ruleOneNeighborCount = 0;
   int ruleThreeNeighborCount = 0;
 
@@ -272,39 +277,37 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
       // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
       if (distance < rule1Distance)
       {
-          perceived_center += pos[i];
+          ruleOnePerceivedCenter += pos[i];
           ++ruleOneNeighborCount;
       }
 
       // Rule 2: boids try to stay a distance d away from each other
       if (distance < rule2Distance)
       {
-          displacement -= pos[i] - boidPos;
+          ruleTwoDistance -= pos[i] - boidPos;
       }
 
       // Rule 3: boids try to match the speed of surrounding boids
       if (distance < rule3Distance)
       {
-          perceived_velocity += vel[i];
+          ruleThreePerceivedVelocity += vel[i];
           ++ruleThreeNeighborCount;
       }
   }
 
-  glm::vec3 scaled_center(0.0, 0.0, 0.0);
-  glm::vec3 scaled_velocity(0.0, 0.0, 0.0);
   if (ruleOneNeighborCount > 0)
   {
-      perceived_center /= ruleOneNeighborCount;
-      scaled_center = (perceived_center - boidPos) * rule1Scale;
+      ruleOnePerceivedCenter /= ruleOneNeighborCount;
+      ruleOneVelocity = (ruleOnePerceivedCenter - boidPos) * rule1Scale;
   }
-  
   if (ruleThreeNeighborCount > 0)
   {
-      perceived_velocity /= ruleThreeNeighborCount;
-      scaled_velocity = perceived_velocity * rule3Scale;
+      ruleThreePerceivedVelocity /= ruleThreeNeighborCount;
+      ruleThreeVelocity = ruleThreePerceivedVelocity * rule3Scale;
   }
+  ruleTwoVelocity = ruleTwoDistance * rule2Scale;
 
-  glm::vec3 velocity_change = boidVel + scaled_center + displacement * rule2Scale + scaled_velocity;
+  glm::vec3 velocity_change = boidVel + ruleOneVelocity + ruleTwoVelocity + ruleThreeVelocity;
 
   return velocity_change;
 }
@@ -488,9 +491,14 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     
     // - Access each boid in the cell and compute velocity change from
     //   the boids rules, if this boid is within the neighborhood distance.
-    glm::vec3 perceived_center(0.0f, 0.0f, 0.0f);
-    glm::vec3 displacement(0.0f, 0.0f, 0.0f);
-    glm::vec3 perceived_velocity(0.0f, 0.0f, 0.0f);
+    glm::vec3 ruleOnePerceivedCenter(0.0f, 0.0f, 0.0f);     // cohesion
+    glm::vec3 ruleTwoDistance(0.0f, 0.0f, 0.0f);            // separation
+    glm::vec3 ruleThreePerceivedVelocity(0.0f, 0.0f, 0.0f); // alignment
+
+    glm::vec3 ruleOneVelocity(0.0, 0.0, 0.0);
+    glm::vec3 ruleTwoVelocity(0.0, 0.0, 0.0);
+    glm::vec3 ruleThreeVelocity(0.0, 0.0, 0.0);
+
     int ruleOneNeighborCount = 0;
     int ruleThreeNeighborCount = 0;
 
@@ -513,40 +521,38 @@ __global__ void kernUpdateVelNeighborSearchScattered(
             // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
             if (distance < rule1Distance)
             {
-                perceived_center += pos[b];
+                ruleOnePerceivedCenter += pos[b];
                 ++ruleOneNeighborCount;
             }
 
             // Rule 2: boids try to stay a distance d away from each other
             if (distance < rule2Distance)
             {
-                displacement -= pos[b] - boidPos;
+                ruleTwoDistance -= pos[b] - boidPos;
             }
 
             // Rule 3: boids try to match the speed of surrounding boids
             if (distance < rule3Distance)
             {
-                perceived_velocity += vel1[b];
+                ruleThreePerceivedVelocity += vel1[b];
                 ++ruleThreeNeighborCount;
             }
         }
     }
 
-    glm::vec3 scaled_center(0.0, 0.0, 0.0);
-    glm::vec3 scaled_velocity(0.0, 0.0, 0.0);
     if (ruleOneNeighborCount > 0)
     {
-        perceived_center /= ruleOneNeighborCount;
-        scaled_center = (perceived_center - boidPos) * rule1Scale;
+        ruleOnePerceivedCenter /= ruleOneNeighborCount;
+        ruleOneVelocity = (ruleOnePerceivedCenter - boidPos) * rule1Scale;
     }
-
     if (ruleThreeNeighborCount > 0)
     {
-        perceived_velocity /= ruleThreeNeighborCount;
-        scaled_velocity = perceived_velocity * rule3Scale;
+        ruleThreePerceivedVelocity /= ruleThreeNeighborCount;
+        ruleThreeVelocity = ruleThreePerceivedVelocity * rule3Scale;
     }
+    ruleTwoVelocity = ruleTwoDistance * rule2Scale;
 
-    glm::vec3 new_velocity = boidVel + scaled_center + displacement * rule2Scale + scaled_velocity;
+    glm::vec3 new_velocity = boidVel + ruleOneVelocity + ruleTwoVelocity + ruleThreeVelocity;
     
     // - Clamp the speed change before putting the new speed in vel2
     float speed = glm::length(new_velocity);
@@ -650,9 +656,14 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     // - For each cell, read the start/end indices in the boid pointer array.
     //   DIFFERENCE: For best results, consider what order the cells should be
     //   checked in to maximize the memory benefits of reordering the boids data.
-    glm::vec3 perceived_center(0.0f, 0.0f, 0.0f);
-    glm::vec3 displacement(0.0f, 0.0f, 0.0f);
-    glm::vec3 perceived_velocity(0.0f, 0.0f, 0.0f);
+    glm::vec3 ruleOnePerceivedCenter(0.0f, 0.0f, 0.0f);     // cohesion
+    glm::vec3 ruleTwoDistance(0.0f, 0.0f, 0.0f);            // separation
+    glm::vec3 ruleThreePerceivedVelocity(0.0f, 0.0f, 0.0f); // alignment
+
+    glm::vec3 ruleOneVelocity(0.0, 0.0, 0.0);
+    glm::vec3 ruleTwoVelocity(0.0, 0.0, 0.0);
+    glm::vec3 ruleThreeVelocity(0.0, 0.0, 0.0);
+
     int ruleOneNeighborCount = 0;
     int ruleThreeNeighborCount = 0;
 
@@ -675,40 +686,38 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
             // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
             if (distance < rule1Distance)
             {
-                perceived_center += pos[j];
+                ruleOnePerceivedCenter += pos[j];
                 ++ruleOneNeighborCount;
             }
 
             // Rule 2: boids try to stay a distance d away from each other
             if (distance < rule2Distance)
             {
-                displacement -= pos[j] - boidPos;
+                ruleTwoDistance -= pos[j] - boidPos;
             }
 
             // Rule 3: boids try to match the speed of surrounding boids
             if (distance < rule3Distance)
             {
-                perceived_velocity += vel1[j];
+                ruleThreePerceivedVelocity += vel1[j];
                 ++ruleThreeNeighborCount;
             }
         }
     }
     
-    glm::vec3 scaled_center(0.0, 0.0, 0.0);
-    glm::vec3 scaled_velocity(0.0, 0.0, 0.0);
     if (ruleOneNeighborCount > 0)
     {
-        perceived_center /= ruleOneNeighborCount;
-        scaled_center = (perceived_center - boidPos) * rule1Scale;
+        ruleOnePerceivedCenter /= ruleOneNeighborCount;
+        ruleOneVelocity = (ruleOnePerceivedCenter - boidPos) * rule1Scale;
     }
-
     if (ruleThreeNeighborCount > 0)
     {
-        perceived_velocity /= ruleThreeNeighborCount;
-        scaled_velocity = perceived_velocity * rule3Scale;
+        ruleThreePerceivedVelocity /= ruleThreeNeighborCount;
+        ruleThreeVelocity = ruleThreePerceivedVelocity * rule3Scale;
     }
+    ruleTwoVelocity = ruleTwoDistance * rule2Scale;
 
-    glm::vec3 new_velocity = boidVel + scaled_center + displacement * rule2Scale + scaled_velocity;
+    glm::vec3 new_velocity = boidVel + ruleOneVelocity + ruleTwoVelocity + ruleThreeVelocity;
     
     // - Clamp the speed change before putting the new speed in vel2
     float speed = glm::length(new_velocity);
