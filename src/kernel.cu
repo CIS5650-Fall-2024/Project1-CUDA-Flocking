@@ -492,6 +492,8 @@ __device__ glm::vec3 kernComputeVelocityChangeScattered(int N, glm::vec3 gridMin
         glm::vec3 selfPos = pos[selfIdx];
         glm::vec3 velocityChange = glm::vec3(0.f);
 
+        float radius = imax(imax(rule1Distance, rule2Distance), rule3Distance);
+
         int numValid1 = 0;
         int numValid3 = 0;
 
@@ -502,59 +504,25 @@ __device__ glm::vec3 kernComputeVelocityChangeScattered(int N, glm::vec3 gridMin
         // find maximum of entire grid in cell space coordinates.
         glm::vec3 cellSpaceMax = glm::vec3(sideCount - 1, sideCount - 1, sideCount - 1);
 
-        // current cell location in cell space coordinates
-        int ix = (int)(std::floor((selfPos.x - gridMin.x) / cellWidth));
-        int iy = (int)(std::floor((selfPos.y - gridMin.y) / cellWidth));
-        int iz = (int)(std::floor((selfPos.z - gridMin.z) / cellWidth));
-
-        // find minimum of current cell in world space coordinates
-        int cellMinx = (int) (ix * cellWidth + gridMin.x);
-        int cellMiny = (int) (iy * cellWidth + gridMin.y);
-        int cellMinz = (int) (iz * cellWidth + gridMin.z);
-
-        // find the local location of the boid relative to its own cell
-        float smallCellWidth = cellWidth / 2; 
-        float localX = (selfPos.x - cellMinx);
-        float localY = (selfPos.y - cellMiny);
-        float localZ = (selfPos.z - cellMinz);
-        
         // create a bounding box based on the location of boid within the grid in cell space coordinates.
         float xMax, xMin, yMax, yMin, zMax, zMin = 0;
 
-        // if localX is less than curGridMin.x + smallCellWidth which is halfway
         // xMax and co. are all cell space coordinates and not world space coordaintes.
-        if (localX <= smallCellWidth) {
-            xMax = ix;
-            // clamp xMin
-            xMin = imax(ix - 1, 0);
-        }
-        else {
-            // clamp xMax
-            xMax = imin(ix + 1, cellSpaceMax.x);
-            xMin = ix;
-        }
+        // find the grid cell associated with radMaxx, radMaxy, radMaxz, radMinx, radMiny, radMinz
+        // set xMax, xMin, yMax, yMin, zMax, zMin etc by clamping between that and 
+        int ixRadMax = std::floor((selfPos.x + radius - gridMin.x) / cellWidth);
+        int iyRadMax = std::floor((selfPos.y + radius - gridMin.y) / cellWidth);
+        int izRadMax = std::floor((selfPos.z + radius - gridMin.z) / cellWidth);
+        int ixRadMin = std::floor((selfPos.x - radius - gridMin.x) / cellWidth);
+        int iyRadMin = std::floor((selfPos.y - radius - gridMin.y) / cellWidth);
+        int izRadMin = std::floor((selfPos.z - radius - gridMin.z) / cellWidth);
 
-        if (localY <= smallCellWidth) {
-            yMax = iy;
-            // clamp yMin
-            yMin = imax(iy - 1, 0);
-        }
-        else {
-            // clamp yMax
-            yMax = imin(iy + 1, cellSpaceMax.y);
-            yMin = iy;
-        }
-
-        if (localZ <= smallCellWidth) {
-            zMax = iz;
-            // clamp zMin
-            zMin = imax(iz - 1, 0);
-        }
-        else {
-            // clamp zMax
-            zMax = imin(iz + 1, cellSpaceMax.z);
-            zMin = iz;
-        }
+        xMax = imin(ixRadMax, cellSpaceMax.x);
+        yMax = imin(iyRadMax, cellSpaceMax.y);
+        zMax = imin(izRadMax, cellSpaceMax.z);
+        xMin = imax(ixRadMin, gridMin.x);
+        yMin = imax(iyRadMin, gridMin.y);
+        zMin = imax(izRadMin, gridMin.z);
 
         // loop within the bounding box.
         // these coordinates have already been clamped
@@ -662,6 +630,8 @@ __device__ glm::vec3 kernComputeVelocityChangeCoherent(int N, glm::vec3 gridMin,
         glm::vec3 selfPos = posSorted[iSelf];
         glm::vec3 velocityChange = glm::vec3(0.f);
 
+        float radius = imax(imax(rule1Distance, rule2Distance), rule3Distance);
+
         int numValid1 = 0;
         int numValid3 = 0;
 
@@ -672,59 +642,25 @@ __device__ glm::vec3 kernComputeVelocityChangeCoherent(int N, glm::vec3 gridMin,
         // find maximum of entire grid in cell space coordinates.
         glm::vec3 cellSpaceMax = glm::vec3(sideCount - 1, sideCount - 1, sideCount - 1);
 
-        // current cell location in cell space coordinates
-        int ix = (int)(std::floor((selfPos.x - gridMin.x) / cellWidth));
-        int iy = (int)(std::floor((selfPos.y - gridMin.y) / cellWidth));
-        int iz = (int)(std::floor((selfPos.z - gridMin.z) / cellWidth));
-
-        // find minimum of current cell in world space coordinates
-        int cellMinx = (int)(ix * cellWidth + gridMin.x);
-        int cellMiny = (int)(iy * cellWidth + gridMin.y);
-        int cellMinz = (int)(iz * cellWidth + gridMin.z);
-
-        // find the local location of the boid relative to its own cell
-        float smallCellWidth = cellWidth / 2;
-        float localX = (selfPos.x - cellMinx);
-        float localY = (selfPos.y - cellMiny);
-        float localZ = (selfPos.z - cellMinz);
-
         // create a bounding box based on the location of boid within the grid in cell space coordinates.
         float xMax, xMin, yMax, yMin, zMax, zMin = 0;
 
-        // if localX is less than curGridMin.x + smallCellWidth which is halfway
         // xMax and co. are all cell space coordinates and not world space coordaintes.
-        if (localX <= smallCellWidth) {
-            xMax = ix;
-            // clamp xMin
-            xMin = imax(ix - 1, 0);
-        }
-        else {
-            // clamp xMax
-            xMax = imin(ix + 1, cellSpaceMax.x);
-            xMin = ix;
-        }
+        // find the grid cell associated with radMaxx, radMaxy, radMaxz, radMinx, radMiny, radMinz
+        // set xMax, xMin, yMax, yMin, zMax, zMin etc by clamping between that and 
+        int ixRadMax = std::floor((selfPos.x + radius - gridMin.x) / cellWidth);
+        int iyRadMax = std::floor((selfPos.y + radius - gridMin.y) / cellWidth);
+        int izRadMax = std::floor((selfPos.z + radius - gridMin.z) / cellWidth);
+        int ixRadMin = std::floor((selfPos.x - radius - gridMin.x) / cellWidth);
+        int iyRadMin = std::floor((selfPos.y - radius - gridMin.y) / cellWidth);
+        int izRadMin = std::floor((selfPos.z - radius - gridMin.z) / cellWidth);
 
-        if (localY <= smallCellWidth) {
-            yMax = iy;
-            // clamp yMin
-            yMin = imax(iy - 1, 0);
-        }
-        else {
-            // clamp yMax
-            yMax = imin(iy + 1, cellSpaceMax.y);
-            yMin = iy;
-        }
-
-        if (localZ <= smallCellWidth) {
-            zMax = iz;
-            // clamp zMin
-            zMin = imax(iz - 1, 0);
-        }
-        else {
-            // clamp zMax
-            zMax = imin(iz + 1, cellSpaceMax.z);
-            zMin = iz;
-        }
+        xMax = imin(ixRadMax, cellSpaceMax.x);
+        yMax = imin(iyRadMax, cellSpaceMax.y);
+        zMax = imin(izRadMax, cellSpaceMax.z);
+        xMin = imax(ixRadMin, gridMin.x);
+        yMin = imax(iyRadMin, gridMin.y);
+        zMin = imax(izRadMin, gridMin.z);
 
         // loop within the bounding box.
         // these coordinates have already been clamped
