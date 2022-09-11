@@ -33,6 +33,9 @@ The first simulation is a naive neighbor search, where each boid searches every 
 whether they are within distance for cohesion, separation, or alignment. If a non-self boid is within any such distance,
 then its position and velocity will be taken into account for the respective rule. 
 
+![Naive Boids Simulation](images/naive2.png)
+_Naive Grid Flocking with 5,000 boids_
+
 #### Part 2. Uniform Grid Boids
 
 The second simulation is a neighbor search that takes into account the largest neighborhood distance among the 3 rules. 
