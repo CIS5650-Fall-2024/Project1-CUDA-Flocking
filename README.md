@@ -2,7 +2,8 @@
 Project 1 - Flocking**
 
 * Di Lu
-  * (TODO) [LinkedIn](), [personal website](), [twitter](), etc.
+  * [LinkedIn](https://www.linkedin.com/in/di-lu-0503251a2/)
+  * [personal website](https://www.dluisnothere.com/)
 * Tested on: Windows 11, i7-12700H @ 2.30GHz 32GB, NVIDIA GeForce RTX 3050 Ti
 
 ## Introduction
