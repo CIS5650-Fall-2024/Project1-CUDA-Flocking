@@ -14,11 +14,11 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS = 90000;
 const float DT = 0.2f;
 
 /**
@@ -202,10 +202,13 @@ void initShaders(GLuint * program) {
     Boids::stepSimulationScatteredGrid(DT);
     #else
     Boids::stepSimulationNaive(DT);
+
+
     #endif
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
+
     #endif
     // unmap buffer object
     cudaGLUnmapBufferObject(boidVBO_positions);
