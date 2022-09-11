@@ -65,6 +65,7 @@ set(headers
     src/cudaMat4.hpp
     src/glslUtility.hpp
     src/kernel.h
+    src/profiling.h
     src/main.hpp
     src/utilityCore.hpp
     )
