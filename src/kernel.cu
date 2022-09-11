@@ -38,7 +38,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 128
+#define blockSize 1024
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
@@ -67,6 +67,8 @@ dim3 threadsPerBlock(blockSize);
 // Consider why you would need two velocity buffers in a simulation where each
 // boid cares about its neighbors' velocities.
 // These are called ping-pong buffers.
+
+//global memory
 glm::vec3 *dev_pos;
 glm::vec3 *dev_vel1;
 glm::vec3 *dev_vel2;
