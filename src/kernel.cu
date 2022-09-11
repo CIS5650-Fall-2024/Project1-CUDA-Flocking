@@ -456,6 +456,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
         return;
     }
 
+    //The max check distancce is equal to half of cell width, as defined by init simulation
     glm::vec3 minPoint = pos[index] - cellWidth / 2;
     glm::vec3 retVec = vel1[index];
   
@@ -472,15 +473,13 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     float cohesion_y = 0.0;
     float cohesion_z = 0.0;
 
-    int thing = 0;
+    //The 3/2 is just a jank way of getting rid of floating point errors
     for (int z = minPoint.z; z <= minPoint.z + cellWidth * 3 / 2; z += cellWidth) {
         for (int y = minPoint.y; y <= minPoint.y + cellWidth * 3 / 2; y += cellWidth) {
             for (int x = minPoint.x; x <= minPoint.x + cellWidth * 3 / 2; x += cellWidth) {
                 glm::vec3 relativePos = glm::vec3(x, y, z) - gridMin;
                 relativePos *= inverseCellWidth;
                 int cell = gridIndex3Dto1D(relativePos.x, relativePos.y, relativePos.z, gridResolution);
-                /*vel2[index] = relativePos;
-                return;*/
                 if (relativePos.x < 0 || relativePos.y < 0 || relativePos.z < 0 
                     || relativePos.x >= gridResolution || relativePos.y >= gridResolution || relativePos.z >= gridResolution
                     || gridCellStartIndices[cell] < 0) {
@@ -551,7 +550,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     if (index >= N) {
         return;
     }
-
+    //The max check distancce is equal to half of cell width, as defined by init simulation
     glm::vec3 minPoint = pos[index] - cellWidth / 2;
     glm::vec3 retVec = vel1[index];
 
@@ -568,15 +567,13 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     float cohesion_y = 0.0;
     float cohesion_z = 0.0;
 
-    int thing = 0;
+    //The 3/2 is just a jank way of getting rid of floating point errors
     for (int z = minPoint.z; z <= minPoint.z + cellWidth * 3 / 2; z += cellWidth) {
         for (int y = minPoint.y; y <= minPoint.y + cellWidth * 3 / 2; y += cellWidth) {
             for (int x = minPoint.x; x <= minPoint.x + cellWidth * 3 / 2; x += cellWidth) {
                 glm::vec3 relativePos = glm::vec3(x, y, z) - gridMin;
                 relativePos *= inverseCellWidth;
                 int cell = gridIndex3Dto1D(relativePos.x, relativePos.y, relativePos.z, gridResolution);
-                /*vel2[index] = relativePos;
-                return;*/
                 if (relativePos.x < 0 || relativePos.y < 0 || relativePos.z < 0
                     || relativePos.x >= gridResolution || relativePos.y >= gridResolution || relativePos.z >= gridResolution
                     || gridCellStartIndices[cell] < 0) {
@@ -805,7 +802,7 @@ void Boids::unitTest() {
     for (int i = 0; i < 5000; i++) {
         std::cout << " x: " << posVNaive[i].x << " y: " << posVNaive[i].y << " z: " << posVNaive[i].z << std::endl;
     }*/
-    stepSimulationCoherentGrid(.2f);
+    //stepSimulationCoherentGrid(.2f);
 
     cudaMemcpy(intGrid.get(), dev_particleGridIndices, sizeof(int) * numObjects, cudaMemcpyDeviceToHost);
     cudaMemcpy(intArr.get(), dev_particleArrayIndices, sizeof(int) * numObjects, cudaMemcpyDeviceToHost);
@@ -815,18 +812,18 @@ void Boids::unitTest() {
     cudaMemcpy(vel1.get(), dev_vel1, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToHost);
     cudaMemcpy(vel2.get(), dev_vel2, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToHost);
     
-    std::cout << "cell width: " << gridCellWidth << " cell resolution: " << gridSideCount << " ------------------------" << std::endl;
-    for (int i = 0; i < 5000; i++) {
-        
-        std::cout << "  key: " << intGrid[i];
-        //std::cout << " value: " << intArr[i];
-        std::cout << " start: " << intStart[intGrid[i]] << " end: " << intEnd[intGrid[i]] << std::endl;
-        std::cout << " x: " << posV[i].x << " y: " << posV[i].y << " z: " << posV[i].z << std::endl;
-        std::cout << " x: " << vel1[i].x << " y: " << vel1[i].y << " z: " << vel1[i].z << std::endl;
-        std::cout << " x: " << vel2[i].x << " y: " << vel2[i].y << " z: " << vel2[i].z << std::endl;
-        std::cout << " --------------------------------- " << std::endl;
-        
-    }
+    //std::cout << "cell width: " << gridCellWidth << " cell resolution: " << gridSideCount << " ------------------------" << std::endl;
+    //for (int i = 0; i < 5000; i++) {
+    //    
+    //    std::cout << "  key: " << intGrid[i];
+    //    //std::cout << " value: " << intArr[i];
+    //    std::cout << " start: " << intStart[intGrid[i]] << " end: " << intEnd[intGrid[i]] << std::endl;
+    //    std::cout << " x: " << posV[i].x << " y: " << posV[i].y << " z: " << posV[i].z << std::endl;
+    //    std::cout << " x: " << vel1[i].x << " y: " << vel1[i].y << " z: " << vel1[i].z << std::endl;
+    //    std::cout << " x: " << vel2[i].x << " y: " << vel2[i].y << " z: " << vel2[i].z << std::endl;
+    //    std::cout << " --------------------------------- " << std::endl;
+    //    
+    //}
 
     // How to copy data to the GPU
     cudaMemcpy(dev_intKeys, intKeys.get(), sizeof(int) * N, cudaMemcpyHostToDevice);
