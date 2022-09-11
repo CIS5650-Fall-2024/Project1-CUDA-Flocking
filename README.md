@@ -50,4 +50,8 @@ Tested in coherent grids. The boids number is 1,00,0000.
 
 ## Feedback
 
-At first all my boids would disapear quickly. It took me a while before I realize it's because some values were divided by zero. Then I added `glm::epsilonequal` to solve the problem.
+* There is a bug in coherent grids when boids size is small. See the [my post in Ed Discussion](https://edstem.org/us/courses/28083/discussion/1757498).
+
+* At first all my boids would disapear quickly. It took me a while before I realize it's because some values were divided by zero. Then I added `glm::epsilonequal` to solve the problem.
+
+* I observe that in scatered grids, the FPS is low at the begining. Then the fps increases as the boids gathering. The situation of the coherent grids is contrary.
