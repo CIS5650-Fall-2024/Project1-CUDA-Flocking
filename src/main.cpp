@@ -13,12 +13,12 @@
 // ================
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
-#define VISUALIZE 1
+#define VISUALIZE 0
 #define UNIFORM_GRID 1
 #define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 9856;
+const int N_FOR_VIS = 2000000;
 const float DT = 0.2f;
 unsigned int steps_in_run = 0;
 

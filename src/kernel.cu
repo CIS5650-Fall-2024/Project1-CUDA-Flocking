@@ -48,6 +48,9 @@ void checkCUDAError(const char* msg, int line = -1) {
 #define rule2Distance 3.0f
 #define rule3Distance 5.0f
 
+#define CUSTOMIZE_CELL_WIDTH 0
+#define SEARCH_27 false
+
 #define rule1Scale 0.01f
 #define rule2Scale 0.1f
 #define rule3Scale 0.1f
@@ -165,8 +168,18 @@ void Boids::initSimulation(int N) {
 	checkCUDAErrorWithLine("kernGenerateRandomVelArray failed!");
 
 	// LOOK-2.1 computing grid params
-	halfGridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
-	gridCellWidth = 2.0f * halfGridCellWidth;
+	if (CUSTOMIZE_CELL_WIDTH == 0) {
+		halfGridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+		gridCellWidth = 2.0f * halfGridCellWidth;
+		if (SEARCH_27) {
+			gridCellWidth /= 2.f;
+			halfGridCellWidth /= 2.f;
+		}
+	}
+	else {
+		halfGridCellWidth = CUSTOMIZE_CELL_WIDTH / 2.f;
+		gridCellWidth = CUSTOMIZE_CELL_WIDTH;
+	}
 	halfGridSideCount = (int)(scene_scale / gridCellWidth) + 1;
 	gridSideCount = 2 * halfGridSideCount;
 
@@ -284,9 +297,9 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3* po
 		}
 	}
 	glm::vec3 outVel;
-	if (!glm::epsilonEqual(num1, 0.f, epsilon)) outVel += (rule1Center / num1 - thisPos) * rule1Scale;
+	if (num1 > 0) outVel += (rule1Center / num1 - thisPos) * rule1Scale;
 	outVel += rule2Vel * rule2Scale;
-	if (!glm::epsilonEqual(num3, 0.f, epsilon)) outVel += (rule3Vel / num3/* - thisVel*/) * rule3Scale;
+	if (num3 > 0) outVel += (rule3Vel / num3/* - thisVel*/) * rule3Scale;
 	return outVel;
 }
 
@@ -402,35 +415,192 @@ __global__ void kernIdentifyCellStartEnd(int N, int* boidGridIndices,
 }
 
 __device__ glm::vec3 gridComputeVelocityChangeScattered(
-	int idx, int idxTrue, int* boidArrayIndices, int serchCell, int* gridCellStartIndices, int* gridCellEndIndices, const glm::vec3* pos, const glm::vec3* vel) {
+	int idx, int idxTrue, int* boidArrayIndices, int searchCell, int sideCount, int sideCount2, int searchX, int searchY, int searchZ,
+	int* gridCellStartIndices, int* gridCellEndIndices, const glm::vec3* pos, const glm::vec3* vel) {
 	float num1 = 0.f, /*num2 = 0.f, */num3 = 0.f;
 	glm::vec3 thisPos = pos[idxTrue];
 	glm::vec3 thisVel = vel[idxTrue];
 	glm::vec3 rule1Center, rule2Vel, rule3Vel;
-	int startIdx = gridCellStartIndices[serchCell];
-	int endIdx = gridCellEndIndices[serchCell];
-	if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
-	for (int ii = startIdx; ii <= endIdx; ii++) {
-		if (ii == idx) continue;
-		glm::vec3 thatPos = pos[boidArrayIndices[ii]];
-		glm::vec3 thatVel = vel[boidArrayIndices[ii]];
-		float dist = glm::distance(thatPos, thisPos);
-		if (dist < rule1Distance) {
-			num1 += 1.f;
-			rule1Center += thatPos;
+	{
+		int startIdx = gridCellStartIndices[searchCell];
+		int endIdx = gridCellEndIndices[searchCell];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[boidArrayIndices[ii]];
+			glm::vec3 thatVel = vel[boidArrayIndices[ii]];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
 		}
-		if (dist < rule2Distance) {
-			rule2Vel -= thatPos - thisPos;
+	}
+	if (searchX != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchX];
+		int endIdx = gridCellEndIndices[searchCell + searchX];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[boidArrayIndices[ii]];
+			glm::vec3 thatVel = vel[boidArrayIndices[ii]];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
 		}
-		if (dist < rule3Distance) {
-			num3 += 1.f;
-			rule3Vel += thatVel;
+	}
+	if (searchX != 0 && searchY != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchX + searchY * sideCount];
+		int endIdx = gridCellEndIndices[searchCell + searchX + searchY * sideCount];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[boidArrayIndices[ii]];
+			glm::vec3 thatVel = vel[boidArrayIndices[ii]];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchX != 0 && searchY != 0 && searchZ != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchX + searchY * sideCount + searchZ * sideCount2];
+		int endIdx = gridCellEndIndices[searchCell + searchX + searchY * sideCount + searchZ * sideCount2];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[boidArrayIndices[ii]];
+			glm::vec3 thatVel = vel[boidArrayIndices[ii]];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchX != 0 && searchZ != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchX + searchZ * sideCount2];
+		int endIdx = gridCellEndIndices[searchCell + searchX + searchZ * sideCount2];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[boidArrayIndices[ii]];
+			glm::vec3 thatVel = vel[boidArrayIndices[ii]];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchY != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchY * sideCount];
+		int endIdx = gridCellEndIndices[searchCell + searchY * sideCount];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[boidArrayIndices[ii]];
+			glm::vec3 thatVel = vel[boidArrayIndices[ii]];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchZ != 0 && searchY != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchY * sideCount + searchZ * sideCount2];
+		int endIdx = gridCellEndIndices[searchCell + searchY * sideCount + searchZ * sideCount2];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[boidArrayIndices[ii]];
+			glm::vec3 thatVel = vel[boidArrayIndices[ii]];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchZ != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchZ * sideCount2];
+		int endIdx = gridCellEndIndices[searchCell + searchZ * sideCount2];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[boidArrayIndices[ii]];
+			glm::vec3 thatVel = vel[boidArrayIndices[ii]];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
 		}
 	}
 	glm::vec3 outVel;
-	if (!glm::epsilonEqual(num1, 0.f, epsilon)) outVel += (rule1Center / num1 - thisPos) * rule1Scale;
+	if (num1 > 0) outVel += (rule1Center / num1 - thisPos) * rule1Scale;
 	outVel += rule2Vel * rule2Scale;
-	if (!glm::epsilonEqual(num3, 0.f, epsilon)) outVel += (rule3Vel / num3/* - thisVel*/) * rule3Scale;
+	if (num3 > 0) outVel += (rule3Vel / num3/* - thisVel*/) * rule3Scale;
 	return outVel;
 }
 
@@ -465,8 +635,6 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 	int searchZ = 0;
 
 	glm::vec3 outSpeed = vel1[idxTrue];
-	// search itself
-	outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx, gridCellStartIndices, gridCellEndIndices, pos, vel1);
 
 	if (x <  halfCellWidth && cellCoord.x > 0)           searchX = -1;
 	if (x >= halfCellWidth && cellCoord.x < sideCount-1) searchX = 1;
@@ -476,59 +644,204 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 	if (z >= halfCellWidth && cellCoord.z < sideCount-1) searchZ = 1;
 
 	float sideCount2 = sideCount*sideCount;
-	if (searchX != 0)
-		outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx + searchX, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchX != 0 && searchY != 0)
-		outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx + searchX + searchY*sideCount, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchX != 0 && searchY != 0 && searchZ != 0)
-		outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx + searchX + searchY*sideCount + searchZ * sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchX != 0 && searchZ != 0)
-		outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx + searchX + searchZ * sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchY != 0)
-		outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx + searchY * sideCount, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchZ != 0 && searchY != 0)
-		outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx + searchY * sideCount + searchZ * sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchZ != 0)
-		outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx + searchZ * sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
+	outSpeed += gridComputeVelocityChangeScattered(idx, idxTrue, boidArrayIndices, cellIdx, sideCount, sideCount2, searchX, searchY, searchZ, gridCellStartIndices, gridCellEndIndices, pos, vel1);
 
 	vel2[idxTrue] = glm::clamp(outSpeed, -maxSpeed, maxSpeed);
 }
 
-__device__ glm::vec3 gridComputeVelocityChangeCoherent(
-	int idx, int serchCell, int* gridCellStartIndices, int* gridCellEndIndices, const glm::vec3* pos, const glm::vec3* vel) {
+__device__ glm::vec3 gridComputeVelocityChangeCoherent8(
+	int idx, int searchCell, int sideCount, int sideCount2, int searchX, int searchY, int searchZ,
+	int* gridCellStartIndices, int* gridCellEndIndices, const glm::vec3* pos, const glm::vec3* vel) {
 	float num1 = 0.f, /*num2 = 0.f, */num3 = 0.f;
 	glm::vec3 thisPos = pos[idx];
 	glm::vec3 thisVel = vel[idx];
 	glm::vec3 rule1Center, rule2Vel, rule3Vel;
-	int startIdx = gridCellStartIndices[serchCell];
-	int endIdx = gridCellEndIndices[serchCell];
-	if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
-	for (int ii = startIdx; ii <= endIdx; ii++) {
-		if (ii == idx) continue;
-		glm::vec3 thatPos = pos[ii];
-		glm::vec3 thatVel = vel[ii];
-		float dist = glm::distance(thatPos, thisPos);
-		if (dist < rule1Distance) {
-			num1 += 1.f;
-			rule1Center += thatPos;
-		}
-		if (dist < rule2Distance) {
-			rule2Vel -= thatPos - thisPos;
-		}
-		if (dist < rule3Distance) {
-			num3 += 1.f;
-			rule3Vel += thatVel;
+	{
+		int startIdx = gridCellStartIndices[searchCell];
+		int endIdx = gridCellEndIndices[searchCell];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[ii];
+			glm::vec3 thatVel = vel[ii];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
 		}
 	}
+	if (searchX != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchX];
+		int endIdx = gridCellEndIndices[searchCell + searchX];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[ii];
+			glm::vec3 thatVel = vel[ii];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchX != 0 && searchY != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchX + searchY * sideCount];
+		int endIdx = gridCellEndIndices[searchCell + searchX + searchY * sideCount];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[ii];
+			glm::vec3 thatVel = vel[ii];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchX != 0 && searchY != 0 && searchZ != 0) {
+		int startIdx = gridCellStartIndices[searchCell +searchX + searchY * sideCount + searchZ * sideCount2];
+		int endIdx = gridCellEndIndices[searchCell +searchX + searchY * sideCount + searchZ * sideCount2];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[ii];
+			glm::vec3 thatVel = vel[ii];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchX != 0 && searchZ != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchX + searchZ * sideCount2];
+		int endIdx = gridCellEndIndices[searchCell + searchX + searchZ * sideCount2];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[ii];
+			glm::vec3 thatVel = vel[ii];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchY != 0) {
+		int startIdx = gridCellStartIndices[searchCell + searchY * sideCount];
+		int endIdx = gridCellEndIndices[searchCell + searchY * sideCount];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[ii];
+			glm::vec3 thatVel = vel[ii];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchZ != 0 && searchY != 0) {
+		int startIdx = gridCellStartIndices[searchCell +searchY * sideCount + searchZ * sideCount2];
+		int endIdx = gridCellEndIndices[searchCell + searchY * sideCount + searchZ * sideCount2];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[ii];
+			glm::vec3 thatVel = vel[ii];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	if (searchZ != 0) {
+		int startIdx = gridCellStartIndices[searchCell  + searchZ * sideCount2];
+		int endIdx = gridCellEndIndices[searchCell + searchZ * sideCount2];
+		if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+		for (int ii = startIdx; ii <= endIdx; ii++) {
+			if (ii == idx) continue;
+			glm::vec3 thatPos = pos[ii];
+			glm::vec3 thatVel = vel[ii];
+			float dist = glm::distance(thatPos, thisPos);
+			if (dist < rule1Distance) {
+				num1 += 1.f;
+				rule1Center += thatPos;
+			}
+			if (dist < rule2Distance) {
+				rule2Vel -= thatPos - thisPos;
+			}
+			if (dist < rule3Distance) {
+				num3 += 1.f;
+				rule3Vel += thatVel;
+			}
+		}
+	}
+	
 	glm::vec3 outVel;
-	if (!glm::epsilonEqual(num1, 0.f, epsilon)) outVel += (rule1Center / num1 - thisPos) * rule1Scale;
+	if (num1 > 0) outVel += (rule1Center / num1 - thisPos) * rule1Scale;
 	outVel += rule2Vel * rule2Scale;
-	if (!glm::epsilonEqual(num3, 0.f, epsilon)) outVel += (rule3Vel / num3/* - thisVel*/) * rule3Scale;
+	if (num3 > 0) outVel += (rule3Vel / num3/* - thisVel*/) * rule3Scale;
 	return outVel;
 }
 
 
-__global__ void kernUpdateVelNeighborSearchCoherent(
+__global__ void kernUpdateVelNeighborSearchCoherent8(
 	int N, int sideCount, glm::vec3 gridMin,
 	float inverseCellWidth, float cellWidth, float halfCellWidth,
 	int* gridCellStartIndices, int* gridCellEndIndices, int* boidGridIndices,
@@ -561,14 +874,6 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 	int searchZ = 0;
 
 	glm::vec3 outSpeed = vel1[idx];
-	
-	outSpeed += gridComputeVelocityChangeCoherent(idx, cellIdx, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	//x = glm::value_ptr(outSpeed)[0];
-	//y = glm::value_ptr(outSpeed)[1];
-	//z = glm::value_ptr(outSpeed)[2];
-	//float x0 = glm::value_ptr(vel1[idx])[0];
-	//float y0 = glm::value_ptr(vel1[idx])[1];
-	//float z0 = glm::value_ptr(vel1[idx])[2];
 
 	if (x < halfCellWidth && cellCoord.x > 0)              searchX = -1;
 	if (x >= halfCellWidth && cellCoord.x < sideCount - 1) searchX = 1;
@@ -577,21 +882,82 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 	if (z < halfCellWidth && cellCoord.z > 0)              searchZ = -1;
 	if (z >= halfCellWidth && cellCoord.z < sideCount - 1) searchZ = 1;
 
+	outSpeed += gridComputeVelocityChangeCoherent8(idx, cellIdx, sideCount, sideCount * sideCount, searchX, searchY, searchZ, gridCellStartIndices, gridCellEndIndices, pos, vel1);
+
+	vel2[idx] = glm::clamp(outSpeed, -maxSpeed, maxSpeed);
+}
+
+
+__device__ glm::vec3 gridComputeVelocityChangeCoherent27(
+	int idx, int searchCell, int maxCellIdx, int sideCount, int sideCount2, int* gridCellStartIndices, int* gridCellEndIndices, const glm::vec3* pos, const glm::vec3* vel) {
+	float num1 = 0.f, /*num2 = 0.f, */num3 = 0.f;
+	glm::vec3 thisPos = pos[idx];
+	glm::vec3 thisVel = vel[idx];
+	glm::vec3 rule1Center, rule2Vel, rule3Vel;
+	for (int dx = -1; dx <= 1; dx++) {
+		for (int dy = -1; dy <= 1; dy++) {
+			for (int dz = -1; dz <= 1; dz++) {
+				int cellIdx = searchCell + dx + dy * sideCount + dz * sideCount2;
+				if (cellIdx < 0 || cellIdx > maxCellIdx) return glm::vec3();
+				int startIdx = gridCellStartIndices[cellIdx];
+				int endIdx = gridCellEndIndices[cellIdx];
+				if (startIdx == -1 || endIdx == -1) return glm::vec3(); //cell doesn't have boids
+				for (int ii = startIdx; ii <= endIdx; ii++) {
+					if (ii == idx) continue;
+					glm::vec3 thatPos = pos[ii];
+					glm::vec3 thatVel = vel[ii];
+					float dist = glm::distance(thatPos, thisPos);
+					if (dist < rule1Distance) {
+						num1 += 1.f;
+						rule1Center += thatPos;
+					}
+					if (dist < rule2Distance) {
+						rule2Vel -= thatPos - thisPos;
+					}
+					if (dist < rule3Distance) {
+						num3 += 1.f;
+						rule3Vel += thatVel;
+					}
+				}
+			}
+		}
+	}
+
+	glm::vec3 outVel;
+	if (num1 > 0) outVel += (rule1Center / num1 - thisPos) * rule1Scale;
+	outVel += rule2Vel * rule2Scale;
+	if (num3 > 0) outVel += (rule3Vel / num3/* - thisVel*/) * rule3Scale;
+	return outVel;
+}
+
+__global__ void kernUpdateVelNeighborSearchCoherent27(
+	int N, int sideCount, glm::vec3 gridMin,
+	float inverseCellWidth, float cellWidth, float halfCellWidth,
+	int* gridCellStartIndices, int* gridCellEndIndices, int* boidGridIndices,
+	glm::vec3* pos, glm::vec3* vel1, glm::vec3* vel2) {
+	// TODO-2.3 - This should be very similar to kernUpdateVelNeighborSearchScattered,
+	// except with one less level of indirection.
+	// This should expect gridCellStartIndices and gridCellEndIndices to refer
+	// directly to pos and vel1.
+	// - Identify the grid cell that this boid is in
+	// - Identify which cells may contain neighbors. This isn't always 8.
+	// - For each cell, read the start/end indices in the boid pointer array.
+	//   DIFFERENCE: For best results, consider what order the cells should be
+	//   checked in to maximize the memory benefits of reordering the boids data.
+	// - Access each boid in the cell and compute velocity change from
+	//   the boids rules, if this boid is within the neighborhood distance.
+	// - Clamp the speed change before putting the new speed in vel2
+
+	int idx = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (idx >= N) return;
+	glm::vec3 thisPos = pos[idx];
+	int cellIdx = boidGridIndices[idx];
+
+	glm::vec3 outSpeed = vel1[idx];
+
 	float sideCount2 = sideCount * sideCount;
-	if (searchX != 0)
-		outSpeed += gridComputeVelocityChangeCoherent(idx, cellIdx + searchX, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchX != 0 && searchY != 0)
-		outSpeed += gridComputeVelocityChangeCoherent(idx, cellIdx + searchX + searchY * sideCount, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchX != 0 && searchY != 0 && searchZ != 0)
-		outSpeed += gridComputeVelocityChangeCoherent(idx, cellIdx + searchX + searchY * sideCount + searchZ * sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchX != 0 && searchZ != 0)
-		outSpeed += gridComputeVelocityChangeCoherent(idx, cellIdx + searchX + searchZ * sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchY != 0)
-		outSpeed += gridComputeVelocityChangeCoherent(idx, cellIdx + searchY * sideCount, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchZ != 0 && searchY != 0)
-		outSpeed += gridComputeVelocityChangeCoherent(idx, cellIdx + searchY * sideCount + searchZ * sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
-	else if (searchZ != 0)
-		outSpeed += gridComputeVelocityChangeCoherent(idx, cellIdx + searchZ * sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
+	float maxCellIdx = sideCount2 * sideCount-1;
+	outSpeed += gridComputeVelocityChangeCoherent27(idx, cellIdx, maxCellIdx, sideCount, sideCount2, gridCellStartIndices, gridCellEndIndices, pos, vel1);
 
 	vel2[idx] = glm::clamp(outSpeed, -maxSpeed, maxSpeed);
 }
@@ -694,9 +1060,14 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 	kernResetIntBuffer <<<fullBlocksPerGrid, blockSize>>> (numObjects, dev_gridCellEndIndices, -1);
 	kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_boidGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 
-	kernUpdateVelNeighborSearchCoherent <<<fullBlocksPerGrid, blockSize >>> (
-		numObjects, gridSideCount, gridMinimum, gridinverseCellWidth, gridCellWidth, halfGridCellWidth, dev_gridCellStartIndices,
-		dev_gridCellEndIndices, dev_boidGridIndices, dev_pos1, dev_vel1, dev_vel2);
+	if (!SEARCH_27)
+		kernUpdateVelNeighborSearchCoherent8 <<<fullBlocksPerGrid, blockSize >>> (
+			numObjects, gridSideCount, gridMinimum, gridinverseCellWidth, gridCellWidth, halfGridCellWidth, dev_gridCellStartIndices,
+			dev_gridCellEndIndices, dev_boidGridIndices, dev_pos1, dev_vel1, dev_vel2);
+	else
+		kernUpdateVelNeighborSearchCoherent27 << <fullBlocksPerGrid, blockSize >> > (
+			numObjects, gridSideCount, gridMinimum, gridinverseCellWidth, gridCellWidth, halfGridCellWidth, dev_gridCellStartIndices,
+			dev_gridCellEndIndices, dev_boidGridIndices, dev_pos1, dev_vel1, dev_vel2);
 	kernUpdatePos <<<fullBlocksPerGrid, blockSize>>> (numObjects, dt, dev_pos1, dev_vel2);
 	std::swap(dev_vel1, dev_vel2);
 }
