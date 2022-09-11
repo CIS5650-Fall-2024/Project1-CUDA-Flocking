@@ -487,7 +487,8 @@ __device__ glm::vec3 kernComputeVelocityChangeScattered(int N, glm::vec3 gridMin
     glm::vec3* vel1, int* gridCellStartIndices, 
     int* gridCellEndIndices, int* particleArrayIndices, int sideCount) {
 
-    int selfIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
+    //int selfIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int selfIdx = iSelf;
     if (selfIdx < N) {
         glm::vec3 selfPos = pos[selfIdx];
         glm::vec3 velocityChange = glm::vec3(0.f);
