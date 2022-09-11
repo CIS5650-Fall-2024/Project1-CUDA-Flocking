@@ -18,7 +18,7 @@
 #define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 256000;
+const int N_FOR_VIS = 16384000;
 const float DT = 0.2f;
 
 /**
@@ -226,7 +226,7 @@ void initShaders(GLuint * program) {
     cudaEventElapsedTime(&execTime, start, end);
 
     avgExecTime = (avgExecTime * (frameCount - 1.0) + execTime) / frameCount;
-    expExecTime = (frameCount < 1.5) ? execTime : glm::mix<double>(expExecTime, execTime, 0.5);
+    expExecTime = (frameCount < 1.5) ? execTime : glm::mix<double>(expExecTime, execTime, 0.9);
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
@@ -266,7 +266,7 @@ void initShaders(GLuint * program) {
       ss.precision(1);
       ss << std::fixed << fps << "fps";
       ss << ", " << std::fixed << avgFps << "avg";
-      ss << ", " << std::setprecision(3) << avgExecTime << "ms]";
+      ss << ", " << std::setprecision(3) << expExecTime << "ms]";
       ss << deviceName;
       ss << " Boid count: " << N_FOR_VIS;
       glfwSetWindowTitle(window, ss.str().c_str());

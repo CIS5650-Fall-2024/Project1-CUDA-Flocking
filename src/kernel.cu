@@ -55,6 +55,15 @@ void checkCUDAError(const char *msg, int line = -1) {
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
 
+#define SEARCH_27_CELLS 1
+
+// Toggle for 27-cell search
+#if SEARCH_27_CELLS
+const int CellSearchSize = 3;
+#else
+const int CellSearchSize = 2;
+#endif
+
 /***********************************************
 * Kernel state (pointers are device pointers) *
 ***********************************************/
@@ -157,8 +166,12 @@ void Boids::initSimulation(int N) {
     dev_pos, scene_scale);
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
+#if SEARCH_27_CELLS
+  gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#else
   // LOOK-2.1 computing grid params
   gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -422,11 +435,15 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int gridIndex = gridIndex3Dto1D(iGridUnit.x, iGridUnit.y, iGridUnit.z, gridResolution);
 
   fGridUnit = glm::fract(fGridUnit);
+#if SEARCH_27_CELLS
+  glm::ivec3 searchOffset(-1, -1, -1);
+#else
   glm::ivec3 searchOffset = {
     fGridUnit.x < 0.5f ? -1 : 0,
     fGridUnit.y < 0.5f ? -1 : 0,
     fGridUnit.z < 0.5f ? -1 : 0
   };
+#endif
   glm::ivec3 startUnit = iGridUnit + searchOffset;
 
   glm::vec3 percCenterSum(0.0f);
@@ -438,9 +455,9 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   glm::vec3 thisPos = pos[index];
 
 #pragma unroll
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < 2; j++) {
-      for (int k = 0; k < 2; k++) {
+  for (int i = 0; i < CellSearchSize; i++) {
+    for (int j = 0; j < CellSearchSize; j++) {
+      for (int k = 0; k < CellSearchSize; k++) {
         glm::ivec3 coord = startUnit + glm::ivec3(k, j, i);
 
         if (coord.x < 0 || coord.x >= gridResolution ||
@@ -530,11 +547,15 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   int gridIndex = gridIndex3Dto1D(iGridUnit.x, iGridUnit.y, iGridUnit.z, gridResolution);
 
   fGridUnit = glm::fract(fGridUnit);
+#if SEARCH_27_CELLS
+  glm::ivec3 searchOffset(-1, -1, -1);
+#else
   glm::ivec3 searchOffset = {
     fGridUnit.x < 0.5f ? -1 : 0,
     fGridUnit.y < 0.5f ? -1 : 0,
     fGridUnit.z < 0.5f ? -1 : 0
   };
+#endif
   glm::ivec3 startUnit = iGridUnit + searchOffset;
 
   glm::vec3 percCenterSum(0.0f);
@@ -546,9 +567,9 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   glm::vec3 thisPos = pos[index];
 
 #pragma unroll
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < 2; j++) {
-      for (int k = 0; k < 2; k++) {
+  for (int i = 0; i < CellSearchSize; i++) {
+    for (int j = 0; j < CellSearchSize; j++) {
+      for (int k = 0; k < CellSearchSize; k++) {
         glm::ivec3 coord = startUnit + glm::ivec3(k, j, i);
 
         if (coord.x < 0 || coord.x >= gridResolution ||
