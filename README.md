@@ -34,6 +34,7 @@ whether they are within distance for cohesion, separation, or alignment. If a no
 then its position and velocity will be taken into account for the respective rule. 
 
 ![Naive Boids Simulation](images/naive2.png)
+
 _Naive Grid Flocking with 5,000 boids_
 
 #### Part 2. Uniform Grid Boids
