@@ -62,7 +62,9 @@ The boids number is 500,000 and the CUDA block size is 128.
 
 ![Average FPS Impacted by the Boids Number](./images/grid-cell-number.png)
 
-### Comparison Between  Searching 8 and 27 grids
+### Comparison Between Searching 8 and 27 grids
+
+Tested in coherent grids. The CUDA block size is 128.
 
 ![Average FPS Impacted by the Boids Number](./images/27vs8.png)
 
