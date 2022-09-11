@@ -76,6 +76,8 @@ Why or why not?
 Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
 that 27-cell is slower simply because there are more cells to check!
 
+## Part 4: More Images and Results!
+
 ## Part 3: Performance Analysis
 For this project, we will guide you through your performance analysis with some
 basic questions. In the future, you will guide your own performance analysis -
