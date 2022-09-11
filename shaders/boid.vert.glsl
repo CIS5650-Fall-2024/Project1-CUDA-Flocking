@@ -5,6 +5,6 @@ in vec4 Velocity;
 out vec4 vFragColorVs;
 
 void main() {
-    vFragColorVs = Velocity;
+    vFragColorVs = normalize(Velocity);
     gl_Position = Position;
 }
