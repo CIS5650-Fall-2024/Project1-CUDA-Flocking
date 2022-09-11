@@ -183,6 +183,9 @@ void Boids::initSimulation(int N) {
   cudaMalloc((void**)&dev_gridCellEndIndices, gridCellCount*sizeof(int));
   checkCUDAErrorWithLine("cudaMalloc dev_gridCellEndIndices failed!");
   
+  dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
+  dev_thrust_particleArrayIndices = thrust::device_ptr<int>(dev_particleArrayIndices);
+
   cudaMalloc((void**)&dev_pos_buf, N * sizeof(glm::vec3));
   checkCUDAErrorWithLine("cudaMalloc dev_pos failed!");
 
@@ -267,18 +270,18 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
             // For rule 1
             if (dist < rule1Distance)
             {
-                pc = pc + pos[i];
+                pc += pos[i];
                 pc_count++;
             }
             // For rule 2
             if (dist < rule2Distance)
             {
-                c = c - (pos[i] - pos[iSelf]);
+                c -= (pos[i] - pos[iSelf]);
             }
             // For rule 3
             if (dist < rule3Distance)
             {
-                pv = pv + vel[i];
+                pv += vel[i];
                 pv_count++;
             }
         }
@@ -286,14 +289,14 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     glm::vec3 v1 = glm::vec3(0.f, 0.f, 0.f);
     if (pc_count > 0)
     {
-        pc = pc / pc_count;
+        pc /= pc_count;
         v1 = (pc - pos[iSelf]) * rule1Scale; // velocity change from rule 1
     }
     glm::vec3 v2 = c * rule2Scale;                           // velocity change from rule 2
     glm::vec3 v3 = glm::vec3(0.f, 0.f, 0.f);
     if (pv_count > 0)
     {
-        pv = pv / pv_count;
+        pv /= pv_count;
         v3 = pv * rule3Scale;    // velocity change from rule 3
     }
   return v1 + v2 + v3;
@@ -423,11 +426,12 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     glm::vec3 bVel = vel1[index];
 
     glm::vec3 dist = bPos - gridMin;    // dist from current boid pos to gridMin
-    glm::ivec3 gridIndex3 = glm::ivec3(glm::floor(dist.x * inverseCellWidth), glm::floor(dist.y * inverseCellWidth),
-        glm::floor(dist.z * inverseCellWidth));
-    int gridIndex = gridIndex3Dto1D(gridIndex3.x, gridIndex3.y, gridIndex3.z, gridResolution);
-    int xDir, yDir, zDir;
+//    glm::ivec3 gridIndex3 = glm::ivec3(glm::floor(dist.x * inverseCellWidth), glm::floor(dist.y * inverseCellWidth), glm::floor(dist.z * inverseCellWidth));
+    glm::ivec3 gridIndex3(round(dist.x * inverseCellWidth) , round(dist.y * inverseCellWidth), round(dist.z * inverseCellWidth));
 
+    int gridIndex = gridIndex3Dto1D(gridIndex3.x, gridIndex3.y, gridIndex3.z, gridResolution);
+    
+    int xDir, yDir, zDir;
 
     // Checking closest side
     if (dist.x > (gridIndex3.x + 1) * cellWidth + 0.5 * cellWidth)
@@ -470,40 +474,43 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     
     for (int i = 0; i < 8; ++i)
     {
-        if (indexToCheck[i] >= 0 && indexToCheck[i] < gridResolution* gridResolution* gridResolution)
+        if (indexToCheck[i] >= 0 && indexToCheck[i] < gridResolution * gridResolution * gridResolution)
         {
             int startIndex = gridCellStartIndices[indexToCheck[i]];
             int endIndex = gridCellEndIndices[indexToCheck[i]];
-            if (startIndex == -1)
+            if (startIndex == -1 || endIndex == -1)
             {
                 continue;
             }
             for (int j = startIndex; j < endIndex; ++j)
             {
                 int bIndex = particleArrayIndices[j];
-                if (bIndex != index) {
-                    float dist = glm::distance(pos[bIndex], pos[index]);
+                if (bIndex != index)
+                {
+                    float dist = glm::distance(pos[bIndex], bPos);
                     // For rule 1
                     if (dist < rule1Distance)
                     {
-                        pc = pc + pos[bIndex];
+                        pc += pos[bIndex];
                         pc_count++;
                     }
                     // For rule 2
                     if (dist < rule2Distance)
                     {
-                        c = c - (pos[bIndex] - pos[index]);
+                        c = c - (pos[bIndex] - bPos);
                     }
                     // For rule 3
                     if (dist < rule3Distance)
                     {
-                        pv = pv + vel1[bIndex];
+                        pv += vel1[bIndex];
                         pv_count++;
                     }
                 }
             }
         }
     }
+
+
 
     glm::vec3 v1 = glm::vec3(0.f, 0.f, 0.f);
     if (pc_count > 0)
@@ -519,7 +526,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
         v3 = pv * rule3Scale;    // velocity change from rule 3
     }
 
-    glm::vec3 newVel = vel1[index] + v1 + v2 + v3;
+    glm::vec3 newVel = bVel + v1 + v2 + v3;
     
     // Clamp the speed
     // Record the new velocity into vel2. Question: why NOT vel1?
@@ -551,9 +558,11 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     glm::vec3 bVel = vel1[index];
 
     glm::vec3 dist = bPos - gridMin;    // dist from current boid pos to gridMin
-    glm::ivec3 gridIndex3 = glm::ivec3(glm::floor(dist.x * inverseCellWidth), glm::floor(dist.y * inverseCellWidth),
-        glm::floor(dist.z * inverseCellWidth));
+//    glm::ivec3 gridIndex3 = glm::ivec3(glm::floor(dist.x * inverseCellWidth), glm::floor(dist.y * inverseCellWidth), glm::floor(dist.z * inverseCellWidth));
+    glm::ivec3 gridIndex3(round(dist.x * inverseCellWidth), round(dist.y * inverseCellWidth), round(dist.z * inverseCellWidth));
+
     int gridIndex = gridIndex3Dto1D(gridIndex3.x, gridIndex3.y, gridIndex3.z, gridResolution);
+
     int xDir, yDir, zDir;
 
 
@@ -610,22 +619,22 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
             {
                 if (j != index) 
                 {
-                    float dist = glm::distance(pos[j], pos[index]);
+                    float dist = glm::distance(pos[j], bPos);
                     // For rule 1
                     if (dist < rule1Distance)
                     {
-                        pc = pc + pos[j];
+                        pc += pos[j];
                         pc_count++;
                     }
                     // For rule 2
                     if (dist < rule2Distance)
                     {
-                        c = c - (pos[j] - pos[index]);
+                        c -= (pos[j] - bPos);
                     }
                     // For rule 3
                     if (dist < rule3Distance)
                     {
-                        pv = pv + vel1[j];
+                        pv += vel1[j];
                         pv_count++;
                     }
                 }
@@ -647,7 +656,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         v3 = pv * rule3Scale;    // velocity change from rule 3
     }
 
-    glm::vec3 newVel = vel1[index] + v1 + v2 + v3;
+    glm::vec3 newVel = bVel + v1 + v2 + v3;
 
     // Clamp the speed
     // Record the new velocity into vel2. Question: why NOT vel1?
@@ -687,8 +696,7 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 
     kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos,
         dev_particleArrayIndices, dev_particleGridIndices);
-    dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
-    dev_thrust_particleArrayIndices = thrust::device_ptr<int>(dev_particleArrayIndices);
+
     thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
 
     kernResetIntBuffer << <cellCount, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
@@ -736,10 +744,6 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 
     kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos,
         dev_particleArrayIndices, dev_particleGridIndices);
-
-    dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
-    dev_thrust_particleArrayIndices = thrust::device_ptr<int>(dev_particleArrayIndices);
-
 
     thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
     
