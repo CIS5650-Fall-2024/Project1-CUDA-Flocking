@@ -715,7 +715,6 @@ void Boids::stepSimulationScatteredGrid(float dt) {
       //dev_vel1 = dev_vel2;
       //dev_vel2 = tmp;
     cudaMemcpy(dev_vel1, dev_vel2, sizeof(glm::vec3) * numObjects, cudaMemcpyDeviceToDevice);
-
 }
 
 
