@@ -22,7 +22,7 @@ In the simulation results, the color of each particle is a representation of its
 
 _Coherent Grid Flocking with 50,000 boids_
 
-## Results and Performance Analysis
+## Implementation and Results
 To measure the performance of my code, I ran my program on release mode with VSync disabled. There are 
 three implementations: with the first being naive neighbor search, and each subsequent part 
 utilizing more optimizations.
@@ -60,7 +60,7 @@ boids that are in a cell together are also contiguous in memory.
 
 _Coherent Grid Flocking with 5,000 boids_
 
-### Overall Performance Analysis
+## Part 3. Overall Performance Analysis
 
 * For each implementation, how does changing the number of boids affect
 performance? Why do you think this is?
