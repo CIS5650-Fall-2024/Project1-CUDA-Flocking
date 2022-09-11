@@ -18,7 +18,7 @@
 #define COHERENT_GRID 1
 
 // TUNE - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS = 50000;
 const float DT = 0.2f;
 
 /**
@@ -216,6 +216,8 @@ void initShaders(GLuint * program) {
     double fps = 0;
     double timebase = 0;
     int frame = 0;
+    double totalFps = 0;
+    int fpsCalc = 0;
 
     // Boids::unitTest(); // example code to make sure CUDA development setup is ready to go
 
@@ -229,6 +231,9 @@ void initShaders(GLuint * program) {
         fps = frame / (time - timebase);
         timebase = time;
         frame = 0;
+
+        totalFps += fps;
+        ++fpsCalc;
       }
 
       runCUDA();
@@ -255,6 +260,8 @@ void initShaders(GLuint * program) {
       glfwSwapBuffers(window);
       #endif
     }
+    std::cout << "Avg FPS: " << totalFps / fpsCalc << " over " << fpsCalc << " measurements";
+
     glfwDestroyWindow(window);
     glfwTerminate();
   }

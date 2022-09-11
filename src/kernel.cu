@@ -321,7 +321,7 @@ __global__ void kernUpdatePos(int N, float dt, glm::vec3 *pos, glm::vec3 *vel) {
   pos[index] = thisPos;
 }
 
-// LOOK-2.3 Looking at this method, what would be the most memory efficient
+// Looking at this method, what would be the most memory efficient
 //          order for iterating over neighboring grid cells?
 //          for(x)
 //            for(y)
@@ -487,19 +487,28 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   int neighborInRule1Dist = 0;
   int neighborInRule3Dist = 0;
 
-  int xStart = 0; int xEnd = 0;
-  int yStart = 0; int yEnd = 0;
-  int zStart = 0; int zEnd = 0;
-  glm::vec3 posRelativeToCell = posRelativeToGrid - (posOfCell * cellWidth);
-  if (posRelativeToCell.x < cellWidth / 2) { xStart = -1; } else { xEnd = 1; }
-  if (posRelativeToCell.y < cellWidth / 2) { yStart = -1; } else { yEnd = 1; }
-  if (posRelativeToCell.z < cellWidth / 2) { zStart = -1; } else { zEnd = 1; }
+  #if _1X_WIDTH_GRID_ // 27 neighbors
+    int xStart = -1; int xEnd = 1;
+    int yStart = -1; int yEnd = 1;
+    int zStart = -1; int zEnd = 1;
+  #else // 8 neighbors
+    int xStart = 0; int xEnd = 0;
+    int yStart = 0; int yEnd = 0;
+    int zStart = 0; int zEnd = 0;
+    glm::vec3 posRelativeToCell = posRelativeToGrid - (posOfCell * cellWidth);
+    if (posRelativeToCell.x < cellWidth / 2) { xStart = -1; }
+    else { xEnd = 1; }
+    if (posRelativeToCell.y < cellWidth / 2) { yStart = -1; }
+    else { yEnd = 1; }
+    if (posRelativeToCell.z < cellWidth / 2) { zStart = -1; }
+    else { zEnd = 1; }
+  #endif
   // For each cell, read the start/end indices in the boid pointer array.
   // DIFFERENCE: For best results, consider what order the cells should be
-  // checked in to maximize the memory benefits of reordering the boids data.
-  for (int x = xStart; x <= xEnd; ++x) {
+  // checked in to maximize the memory benefits of reordering the boids data. (contiguous)
+  for (int z = zStart; z <= zEnd; ++z) {
     for (int y = yStart; y <= yEnd; ++y) {
-      for (int z = zStart; z <= zEnd; ++z) {
+      for  (int x = xStart; x <= xEnd; ++x) {
         // gridRes ^ 3 == gridCellCount
         int neighborCellIdx = gridCellIdx + gridIndex3Dto1D(x, y, z, gridResolution);
         if (neighborCellIdx < 0 ||
@@ -542,9 +551,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     velChange += perceivedVel * rule3Scale;
   }
   vel2[currIdx] = vel1[currIdx] + velChange;
-  // Clamp speed if needed.. TODO: in this coherent STEP it goes to MAX SPEED almost
-  // instantly. compare with non-coherent which takes a second-ish to go wild. this is 
-  // almost certainly a symptom of t he problem.
+  // Clamp speed if needed.
   if (glm::length(vel2[currIdx]) > maxSpeed) {
     vel2[currIdx] = glm::normalize(vel2[currIdx]) * maxSpeed;
   }
