@@ -23,7 +23,7 @@
 - the performance goes down when the number of boids increases, because there is more computation.
 
 ### For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
-- If the block size is over 1024, then warps will be queued up in the scheduler, leading to less parallelism and therefore worse performance
+- If the block size is over 1024, then the program will not work because the maximum number of threads per block is limited to 1024 for all GPU architectures.
 - Otherwise, there appears to be no strong corelation between block size and performance
 
 ### For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
