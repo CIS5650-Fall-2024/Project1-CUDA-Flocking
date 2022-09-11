@@ -7,8 +7,6 @@
 
 ## Introduction
 
-![Coherent Grid Flocking with 50,000 boids](images/header2.gif)
-
 In this project, I simulate flocking behavior for a 200 x 200 x 200 cube of scattered boids by using CUDA kernel functions
 to calculate their position and velocity on each dT. Based on Craig Reynold's artificial life program, for which a SIGGRAPH paper was written in 1989,
 the following three behaviors are implemented:
@@ -19,6 +17,9 @@ the following three behaviors are implemented:
 their neighbors
 
 In the simulation results, the color of each particle is a representation of its velocity.
+
+![Coherent Grid Flocking with 50,000 boids](images/header2.gif)
+
 
 ## Results and Performance Analysis
 To measure the performance of my code, I ran my program on release mode with VSync disabled. There are 
