@@ -5,13 +5,13 @@ Project 1 - Flocking**
   * (TODO) [LinkedIn](), [personal website](), [twitter](), etc.
 * Tested on: Windows 11, i7-12700H @ 2.30GHz 32GB, NVIDIA GeForce RTX 3050 Ti
 
-### Introduction
+## Introduction
 
 In this project, I started to learn how to write CUDA kernel functions and how to invoke them. 
 The project simulates flocking behavior based on Craig Reynold's artificial life program, for which
 a SIGGRAPH paper was written in 1989.
 
-### Part 1. Naive Boids Simulation
+## Part 1. Naive Boids Simulation
 
 
 
