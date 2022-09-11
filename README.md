@@ -19,20 +19,55 @@ their neighbors
 In the simulation results, the color of each particle is a representation of its velocity.
 
 ## Results and Performance Analysis
-To measure the performance of my code, I ran my program on release mode with VSync disabled. Each of the following
-parts are a slightly different implementation, with the first being naive neighbor search, and each subsequent part 
+To measure the performance of my code, I ran my program on release mode with VSync disabled. There are 
+three implementations: with the first being naive neighbor search, and each subsequent part 
 utilizing more optimizations.
 
 ### Part 1. Naive Boids Simulation
+
+The first simulation is a naive neighbor search, where each boid searches every other boid in existence and checks 
+whether they are within distance for cohesion, separation, or alignment. If a non-self boid is within the distance,
+then its position and velocity will be taken into account for the respective rule. 
+
+* For each implementation, how does changing the number of boids affect
+performance? Why do you think this is?
+
+* For each implementation, how does changing the block count and block size
+affect performance? Why do you think this is?
 
 Include screenshots, analysis, etc. (Remember, this is public, so don't put
 anything here that you don't want to share with the world.)
 
 ### Part 2. Uniform Grid Boids
+* For each implementation, how does changing the number of boids affect
+performance? Why do you think this is?
+
+* For each implementation, how does changing the block count and block size
+affect performance? Why do you think this is?
+
+* Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
+Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
+that 27-cell is slower simply because there are more cells to check!
+
 Include screenshots, analysis, etc. (Remember, this is public, so don't put
 anything here that you don't want to share with the world.)
 
+
 ### Part 3. Coherent Grid Boids
+* For each implementation, how does changing the number of boids affect
+performance? Why do you think this is?
+
+* For each implementation, how does changing the block count and block size
+affect performance? Why do you think this is?
+
+* For the coherent uniform grid: did you experience any performance improvements
+with the more coherent uniform grid? Was this the outcome you expected?
+Why or why not?
+
+* Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
+Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
+that 27-cell is slower simply because there are more cells to check!
+
 Include screenshots, analysis, etc. (Remember, this is public, so don't put
 anything here that you don't want to share with the world.)
 
