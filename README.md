@@ -1,5 +1,4 @@
-**University of Pennsylvania, CIS 565: GPU Programming and Architecture,
-Project 1 - Flocking**
+# University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 1 - Flocking
 
 * Di Lu
   * [LinkedIn](https://www.linkedin.com/in/di-lu-0503251a2/)
