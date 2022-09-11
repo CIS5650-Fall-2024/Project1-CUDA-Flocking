@@ -46,7 +46,7 @@ Project 1 - Flocking**
 - Also there can be frame drop sometimes that make the flowing of the boids less consistent, for this I would think it to be the result of GPU Stalling/CPU throttling? 
 #### Cell Width Performance
 ![CellWidthPerformance](./images/GridCellPerformance.png)
-- (The Boids number on the X-Coord is the same as the previous chart, from 5K to 1000K)
+- (The Boids number on the X-Coord is the same as the previous chart, from 5K to 2000K)
 - Larger CellWidth can make FPS relatively faster when running low weight task, but when running heavy weight task the larger cellwidth can perform better; but not larger cellwidth can bring better performance, for this scenario 27 and 64 grid performed a similar scenario as boids number getting huge.
 
 #### Block Size Performance
