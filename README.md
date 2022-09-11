@@ -62,13 +62,11 @@ _Coherent Grid Flocking with 5,000 boids_
 
 ## Part 3. Overall Performance Analysis
 
-* For each implementation, how does changing the number of boids affect
-performance? Why do you think this is?
+* Number of Boids vs. Performance
 
 ![Graph 1](images/graph1.png)
 
-* For each implementation, how does changing the block count and block size
-affect performance? Why do you think this is?
+* BlockSize vs. Performance (N = 100,000)
 
 ![Graph 2](images/graph2.png)
 
