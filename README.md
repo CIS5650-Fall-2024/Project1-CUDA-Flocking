@@ -90,22 +90,19 @@ decrease efficiency, because
 
 To test my thinking, I used the following two scenarios:
 
-Optimization: Coherent grid
+_Constants: 
 
-Number of boids: 100,000 
+_Coherent grid
+
+_Number of boids: 100,000 
 
 1. Scene Scale: 100
 
-Cell width: 2 * neighborhood
-
-Cell width: neighborhood
+I observed around 100 FPS **increase** when I used cell width == neighborhood size.
 
 2. Scene Scale: 200
 
-Cell width: 2 * neighorbhood
-
-Cell Width: neighborhood
-
+I observed nearly 200 FPS **decrease** when I used cell width == neighbordhood size.
 
 
 
