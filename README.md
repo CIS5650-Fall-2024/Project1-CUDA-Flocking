@@ -108,7 +108,7 @@ My understanding is that given scene scale 100 and 100,000 boids, decreasing cel
 (thus checking more cells) will increase performance. This is because given the same density
 of boids in a cell, we can check more cells in parallel and run less sequential operations 
 for each cell. However, if the scene scale were larger with the same number of boids, then this could potentially 
-decrease efficiency, because 
+decrease efficiency, because we are checking more cells that could be "useless".
 
 To test my thinking, I used the following two scenarios:
 
