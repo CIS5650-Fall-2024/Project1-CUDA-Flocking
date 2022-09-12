@@ -19,9 +19,9 @@ Performance Analysis
 ====================
 I use the provided framerate meter as the metric. Its not very accurate, but still makesense.
 
-##Questions
+## Questions
 
-**For each implementation, how does changing the number of boids affect performance? Why do you think this is?
+**For each implementation, how does changing the number of boids affect performance? Why do you think this is?**
 
 ![](images/img1.png)
 
@@ -31,7 +31,7 @@ I use the provided framerate meter as the metric. Its not very accurate, but sti
 
 * For coherent Grid, the FPS rate also decrease slowly before 10k Boids, and is better than uniform grid. It utilizes the cache better, and havfe fewer memory reads.
 
-**For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
+**For each implementation, how does changing the block count and block size affect performance? Why do you think this is?**
 
 ![](images/img2.png)
 
@@ -39,11 +39,11 @@ I use the provided framerate meter as the metric. Its not very accurate, but sti
 
 * For Uniform Grid and coherent, the trend is the same, while the threshold changes. The FPS rate didn't goes up or drop dramatically, since a single task do not need to do much work.
 
-**For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+**For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?**
 
 * I experence performance improvement as expected. This tis because it utilized the cache better, and have fewer memory reads.
 
-**Did changing cell width and checking 27 vs 8 neighboring cells affect performance?Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
+**Did changing cell width and checking 27 vs 8 neighboring cells affect performance?Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!**
 
 * For 500k boids and coherent grid, 27 cell and half cell width has 430 FPS, while 8 cell and full width has 300 FPS.
 
