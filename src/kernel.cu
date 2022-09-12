@@ -55,6 +55,8 @@ void checkCUDAError(const char* msg, int line = -1) {
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
 
+#define neighbours_27 0
+
 /***********************************************
 * Kernel state (pointers are device pointers) *
 ***********************************************/
@@ -159,7 +161,12 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
+
+#if neighbours_27
+  gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#else
   gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -459,7 +466,14 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int gridY = gridPos.y;
   int gridZ = gridPos.z;
 
-  // Only check closest 8 neighbours, not all 27
+#if neighbours_27
+  int xMin = imax(gridX - 1, 0);
+  int yMin = imax(gridY - 1, 0);
+  int zMin = imax(gridZ - 1, 0);
+  int xMax = imin(gridX + 1, gridResolution - 1);
+  int yMax = imin(gridY + 1, gridResolution - 1);
+  int zMax = imin(gridZ + 1, gridResolution - 1);
+#else
   glm::vec3 gridPosRelativeExact = gridPosExact - gridPos;
   int xMin = gridPosRelativeExact.x < 0.5 ? imax(gridX - 1, 0) : gridX;
   int yMin = gridPosRelativeExact.y < 0.5 ? imax(gridY - 1, 0) : gridY;
@@ -467,6 +481,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int xMax = gridPosRelativeExact.x >= 0.5 ? imin(gridX + 1, gridResolution - 1) : gridX;
   int yMax = gridPosRelativeExact.y >= 0.5 ? imin(gridY + 1, gridResolution - 1) : gridY;
   int zMax = gridPosRelativeExact.z >= 0.5 ? imin(gridZ+ 1, gridResolution - 1) : gridZ;
+#endif
 
   for (int z = zMin; z <= zMax; ++z) {
     for (int y = yMin; y <= yMax; ++y) {
@@ -568,7 +583,14 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   int gridY = gridPos.y;
   int gridZ = gridPos.z;
 
-  // Only check closest 8 neighbours, not all 27
+#if neighbours_27
+  int xMin = imax(gridX - 1, 0);
+  int yMin = imax(gridY - 1, 0);
+  int zMin = imax(gridZ - 1, 0);
+  int xMax = imin(gridX + 1, gridResolution - 1);
+  int yMax = imin(gridY + 1, gridResolution - 1);
+  int zMax = imin(gridZ + 1, gridResolution - 1);
+#else
   glm::vec3 gridPosRelativeExact = gridPosExact - gridPos;
   int xMin = gridPosRelativeExact.x < 0.5 ? imax(gridX - 1, 0) : gridX;
   int yMin = gridPosRelativeExact.y < 0.5 ? imax(gridY - 1, 0) : gridY;
@@ -576,6 +598,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   int xMax = gridPosRelativeExact.x >= 0.5 ? imin(gridX + 1, gridResolution - 1) : gridX;
   int yMax = gridPosRelativeExact.y >= 0.5 ? imin(gridY + 1, gridResolution - 1) : gridY;
   int zMax = gridPosRelativeExact.z >= 0.5 ? imin(gridZ + 1, gridResolution - 1) : gridZ;
+#endif
 
   for (int z = zMin; z <= zMax; ++z) {
     for (int y = yMin; y <= yMax; ++y) {
