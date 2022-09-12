@@ -422,6 +422,8 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     if (index >= N) {
         return;
     }
+    int searchRadius = 2;
+
     glm::vec3 bPos = pos[index];
     glm::vec3 bVel = vel1[index];
 
@@ -458,52 +460,52 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     {
         zDir = -1;
     }
-    int indexToCheck[8] = {gridIndex,
-                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y, gridIndex3.z, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y + yDir, gridIndex3.z, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y, gridIndex3.z + zDir, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y + yDir, gridIndex3.z, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y + yDir, gridIndex3.z + zDir, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y, gridIndex3.z + zDir, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y + yDir, gridIndex3.z + zDir, gridResolution) };
+
 
     float pc_count = 0, pv_count = 0;
     glm::vec3 pc = glm::vec3(0.f, 0.f, 0.f);   // perceived center of mass
     glm::vec3 c = glm::vec3(0.f, 0.f, 0.f);     // displacement to avoid collision
     glm::vec3 pv = glm::vec3(0.f, 0.f, 0.f);   // perceived velocity of mass
     
-    for (int i = 0; i < 8; ++i)
-    {
-        if (indexToCheck[i] >= 0 && indexToCheck[i] < gridResolution * gridResolution * gridResolution)
+    for (int z=gridIndex3.z; abs(z-gridIndex3.z) < searchRadius; z+=zDir)
+    { 
+        for (int y = gridIndex3.y; abs(y - gridIndex3.y) < searchRadius; y += yDir)
         {
-            int startIndex = gridCellStartIndices[indexToCheck[i]];
-            int endIndex = gridCellEndIndices[indexToCheck[i]];
-            if (startIndex == -1 || endIndex == -1)
+            for (int x = gridIndex3.x; abs(x - gridIndex3.x) < searchRadius; x += xDir)
             {
-                continue;
-            }
-            for (int j = startIndex; j <= endIndex; ++j)
-            {
-                int bIndex = particleArrayIndices[j];
-                if (bIndex != index)
+                int indexToCheck = gridIndex3Dto1D(x, y, z, gridResolution);
+                if (indexToCheck >= 0 && indexToCheck < gridResolution * gridResolution * gridResolution)
                 {
-                    float dist = glm::distance(pos[bIndex], bPos);
-                    // For rule 1
-                    if (dist < rule1Distance)
+                    int startIndex = gridCellStartIndices[indexToCheck];
+                    int endIndex = gridCellEndIndices[indexToCheck];
+                    if (startIndex == -1 || endIndex == -1)
                     {
-                        pc += pos[bIndex];
-                        pc_count++;
+                        continue;
                     }
-                    // For rule 2
-                    if (dist < rule2Distance)
+                    for (int j = startIndex; j <= endIndex; ++j)
                     {
-                        c -= (pos[bIndex] - bPos);
-                    }
-                    // For rule 3
-                    if (dist < rule3Distance)
-                    {
-                        pv += vel1[bIndex];
-                        pv_count++;
+                        int bIndex = particleArrayIndices[j];
+                        if (bIndex != index)
+                        {
+                            float dist = glm::distance(pos[bIndex], bPos);
+                            // For rule 1
+                            if (dist < rule1Distance)
+                            {
+                                pc += pos[bIndex];
+                                pc_count++;
+                            }
+                            // For rule 2
+                            if (dist < rule2Distance)
+                            {
+                                c -= (pos[bIndex] - bPos);
+                            }
+                            // For rule 3
+                            if (dist < rule3Distance)
+                            {
+                                pv += vel1[bIndex];
+                                pv_count++;
+                            }
+                        }
                     }
                 }
             }
@@ -554,6 +556,9 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     if (index >= N) {
         return;
     }
+
+    int searchRadius = 2;
+
     glm::vec3 bPos = pos[index];
     glm::vec3 bVel = vel1[index];
 
@@ -590,51 +595,50 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     {
         zDir = -1;
     }
-    int indexToCheck[8] = { gridIndex,
-                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y, gridIndex3.z, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y + yDir, gridIndex3.z, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y, gridIndex3.z + zDir, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y + yDir, gridIndex3.z, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x, gridIndex3.y + yDir, gridIndex3.z + zDir, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y, gridIndex3.z + zDir, gridResolution),
-                            gridIndex3Dto1D(gridIndex3.x + xDir, gridIndex3.y + yDir, gridIndex3.z + zDir, gridResolution) };
 
     float pc_count = 0, pv_count = 0;
     glm::vec3 pc = glm::vec3(0.f, 0.f, 0.f);   // perceived center of mass
     glm::vec3 c = glm::vec3(0.f, 0.f, 0.f);     // displacement to avoid collision
     glm::vec3 pv = glm::vec3(0.f, 0.f, 0.f);   // perceived velocity of mass
 
-    for (int i = 0; i < 8; ++i)
-    {
-        if (indexToCheck[i] >= 0 && indexToCheck[i] < gridResolution * gridResolution * gridResolution)
-        {
-            int startIndex = gridCellStartIndices[indexToCheck[i]];
-            int endIndex = gridCellEndIndices[indexToCheck[i]];
-            if (startIndex == -1 || endIndex == -1)
+    for (int z = gridIndex3.z; abs(z - gridIndex3.z) < searchRadius; z += zDir)
+    { 
+        for (int y = gridIndex3.y; abs(y - gridIndex3.y) < searchRadius; y += yDir)
+        { 
+            for (int x = gridIndex3.x; abs(x - gridIndex3.x) < searchRadius; x += xDir)
             {
-                continue;
-            }
-            for (int j = startIndex; j <= endIndex; ++j)
-            {
-                if (j != index)
+                int indexToCheck = gridIndex3Dto1D(x, y, z, gridResolution);
+                if (indexToCheck >= 0 && indexToCheck < gridResolution * gridResolution * gridResolution)
                 {
-                    float dist = glm::distance(pos[j], bPos);
-                    // For rule 1
-                    if (dist < rule1Distance)
+                    int startIndex = gridCellStartIndices[indexToCheck];
+                    int endIndex = gridCellEndIndices[indexToCheck];
+                    if (startIndex == -1 || endIndex == -1)
                     {
-                        pc += pos[j];
-                        pc_count++;
+                        continue;
                     }
-                    // For rule 2
-                    if (dist < rule2Distance)
+                    for (int j = startIndex; j <= endIndex; ++j)
                     {
-                        c -= (pos[j] - bPos);
-                    }
-                    // For rule 3
-                    if (dist < rule3Distance)
-                    {
-                        pv += vel1[j];
-                        pv_count++;
+                        if (j != index)
+                        {
+                            float dist = glm::distance(pos[j], bPos);
+                            // For rule 1
+                            if (dist < rule1Distance)
+                            {
+                                pc += pos[j];
+                                pc_count++;
+                            }
+                            // For rule 2
+                            if (dist < rule2Distance)
+                            {
+                                c -= (pos[j] - bPos);
+                            }
+                            // For rule 3
+                            if (dist < rule3Distance)
+                            {
+                                pv += vel1[j];
+                                pv_count++;
+                            }
+                        }
                     }
                 }
             }
