@@ -7,7 +7,7 @@ Project 1 - Flocking**
 
 ### Results
 
-![](images/5000000_boids.gif)
+![](images/5000000_boids_smaller.gif)
 5000000 boids, 1.75 dt timestep, 400.0 scene scale, 1.5 max speed
 
 ![](images/5000_boids_02_dt.gif)
