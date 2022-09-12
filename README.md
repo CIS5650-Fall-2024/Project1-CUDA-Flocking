@@ -74,6 +74,10 @@ _Coherent Grid Flocking with 5,000 boids_
 with the more coherent uniform grid? Was this the outcome you expected?
 Why or why not?
 
+I experienced a significant performance improvement with coherent uniform grid when the boid number
+is also very high. For fewer boids, the performance improvement is not that obvious (for example, 
+FPS is fairly similar between coherent and uniform grids when we have 5,000 boids.)
+
 * Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
 Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
 that 27-cell is slower simply because there are more cells to check!
@@ -85,15 +89,21 @@ if the scene scale were larger with the same number of boids, then this could po
 decrease efficiency, because 
 
 To test my thinking, I used the following two scenarios:
+
 Optimization: Coherent grid
+
 Number of boids: 100,000 
 
 1. Scene Scale: 100
+
 Cell width: 2 * neighborhood
+
 Cell width: neighborhood
 
 2. Scene Scale: 200
+
 Cell width: 2 * neighorbhood
+
 Cell Width: neighborhood
 
 
