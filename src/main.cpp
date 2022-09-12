@@ -18,7 +18,6 @@
 #define COHERENT_GRID 1
 
 #define DATA_COLLECTION_AVG_FPS 1
-#define DATA_COLLECTION_FPS_OVER_TIME 0
 
 #define FRAMES_TO_RECORD 20
 
@@ -28,8 +27,8 @@ int fps_record[FRAMES_TO_RECORD];
 
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000000;
-const float DT = 1.75f;
+const int N_FOR_VIS = 5000;
+const float DT = 0.2f;
 
 int wait_for_gif_recorder = 0;
 
@@ -44,7 +43,7 @@ int main(int argc, char* argv[]) {
   
 
   if (init(argc, argv)) {
-      sleep_for(seconds(10));
+      //sleep_for(seconds(10));
     mainLoop();
     Boids::endSimulation();
 #ifdef DATA_COLLECTION_AVG_FPS
@@ -337,8 +336,6 @@ void initShaders(GLuint * program) {
     cameraPosition.z = zoom * cos(theta);
     cameraPosition.y = zoom * cos(phi) * sin(theta);
     cameraPosition += lookAt;
-
-    std::cout << "phi, theta " << phi << " " << theta << std::endl;
 
     projection = glm::perspective(fovy, float(width) / float(height), zNear, zFar);
     glm::mat4 view = glm::lookAt(cameraPosition, lookAt, glm::vec3(0, 0, 1));

@@ -41,18 +41,18 @@ void checkCUDAError(const char *msg, int line = -1) {
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
-#define rule1Distance 5.0f //* 1.35f
-#define rule2Distance 3.0f //* 1.35f
-#define rule3Distance 5.0f //* 1.35f
+#define rule1Distance 5.0f
+#define rule2Distance 3.0f
+#define rule3Distance 5.0f
 
 #define rule1Scale 0.01f
 #define rule2Scale 0.1f
 #define rule3Scale 0.1f
 
-#define maxSpeed 1.5f
+#define maxSpeed 1.0f
 
 /*! Size of the starting area in simulation space. */
-#define scene_scale 400.0f
+#define scene_scale 100.0f
 
 #define search_distance_to_cell_width 2.0f
 
@@ -170,41 +170,6 @@ void Boids::initSimulation(int N) {
   // calculate number of cells in each direction encompassed by max search distance
   float searchRadiusToCellWidthRatio = maxSearchDistance / gridCellWidth;
   numCellsToSearchPerDir = glm::floor(searchRadiusToCellWidthRatio * 1.99) + 2;
-  std::cout << "numCellsToSearchPirDir = " << numCellsToSearchPerDir << std::endl;
-
-  glm::vec3 thisBoidGrid = glm::vec3(3.75, 3.25, 3.75);
-  int minCells[3];
-  int maxCells[3];
-  int cellsToAllocate = numCellsToSearchPerDir - 2;
-  for (int i = 0; i < 3; ++i) {
-      // offsets needed to calulate each of the 8 grids to check
-      int gridOffset = 1;
-      if (glm::fract(thisBoidGrid[i]) <= 0.5) {
-          gridOffset = -1;
-      }
-      int oneEnd = thisBoidGrid[i];
-      int otherEnd = oneEnd + gridOffset;
-
-      minCells[i] = imin(oneEnd, otherEnd);
-      maxCells[i] = imax(oneEnd, otherEnd);
-
-      // handle case where there are more than 2 cells in each direction you must search
-      if (numCellsToSearchPerDir > 2) {
-          if (gridOffset == 1) {
-              minCells[i] -= (cellsToAllocate + 1) / 2;
-              maxCells[i] += cellsToAllocate / 2;
-          }
-          else {
-              minCells[i] -= cellsToAllocate / 2;
-              maxCells[i] += (cellsToAllocate + 1) / 2;
-          }
-      }
-  }
-  std::cout << "[ " << minCells[0] << " " << maxCells[0] << " ]" << std::endl;
-  std::cout << "[ " << minCells[1] << " " << maxCells[1] << " ]" << std::endl;
-  std::cout << "[ " << minCells[2] << " " << maxCells[2] << " ]" << std::endl;
-  int totalCellsToCheck = (maxCells[0] - minCells[0] + 1) * (maxCells[1] - minCells[1] + 1) * (maxCells[2] - minCells[2] + 1);
-  std::cout << totalCellsToCheck << std::endl;
 
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
