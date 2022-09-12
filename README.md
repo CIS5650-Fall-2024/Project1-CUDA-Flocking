@@ -16,9 +16,9 @@ Project 1 - Flocking**
 ![](images/500000.gif)
 
 # Performance Charts
-![](images/1.PNG)
-![](images/2.PNG)
-![](images/3.PNG)
+![](images/1.png)
+![](images/2.png)
+![](images/3.png)
 
 # Introduction 
 In this CUDA project, I implemented three methods to search through all boids in the space and update their positions and velocity to form a flocking behavior.
