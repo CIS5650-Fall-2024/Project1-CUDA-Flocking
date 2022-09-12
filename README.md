@@ -18,4 +18,4 @@ This project implements a flocking simulation based on the Reynolds Boids algori
 
 ## Performance Analysis 
 * For each implementation, how does changing the number of boids affect performance? Why do you think this is?
-  * Sub asdfawef
+  * Sub As we can observe from the figure below, increasing the number of boids will decrease the performance badly for the Naive Algorithm. Increasing the number of boids 
