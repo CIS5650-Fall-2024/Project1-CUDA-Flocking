@@ -1,11 +1,22 @@
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture,
 Project 1 - Flocking**
 
-* (TODO) YOUR NAME HERE
-  * (TODO) [LinkedIn](), [personal website](), [twitter](), etc.
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* RHUTA JOSHI
+  * [LinkedIn](https://www.linkedin.com/in/rcj9719/)
+  * [Website](https://sites.google.com/view/rhuta-joshi)
 
-### (TODO: Your README)
+* Tested on: Windows 10 Home, i5-7200U CPU @ 2.50GHz, NVIDIA GTX 940MX 4096 MB (Personal Laptop), RTX not supported
+* GPU Compatibility: 5.0
 
-Include screenshots, analysis, etc. (Remember, this is public, so don't put
-anything here that you don't want to share with the world.)
+# Boids Assemble! #
+
+![](images/50k_default.gif)
+
+## Introduction
+
+Boids are a computer simulation of an animal(eg. fish/bird) that flies in flocks or swarms.
+In this assignment I have implemented a flocking simulation based on the Reynolds Boids algorithm, optimized using a uniform grid. Another level of optimization to be implemented is using a uniform grid with semi-coherent memory access.
+
+# Performance Analysis #
+
+To be updated
