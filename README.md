@@ -7,7 +7,8 @@ Project 1 - Flocking**
 ## Introduction
 This project implements a flocking simulation based on the Reynolds Boids algorithm, along with two levels of optimization: a uniform grid, and a uniform grid with semi-coherent memory access.
 
-![sdfsadf](images/Unifrom_20000boids.gif)
+![](images/Unifrom_20000boids.gif)
+*image_caption*
 
 ![](images/Unifrom_60000boids.gif)
 
