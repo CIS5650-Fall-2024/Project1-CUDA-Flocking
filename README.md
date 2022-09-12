@@ -79,4 +79,6 @@ Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
 that 27-cell is slower simply because there are more cells to check!
 
 ## Part 4: More Images and Results!
+![](images/naive50k.png)
+_Naive Flocking with 50,000 boids_
 
