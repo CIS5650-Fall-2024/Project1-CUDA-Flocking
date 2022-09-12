@@ -278,8 +278,11 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
             }
         }
     }
-    if (numOfNeighborsP != 0 && numOfNeighborsV != 0) {
+    if (numOfNeighborsP != 0) {
         perceivedCenter /= numOfNeighborsP;
+    }
+
+    if (numOfNeighborsV != 0) {
         perceivedVelocity /= numOfNeighborsV;
     }
     
@@ -363,8 +366,11 @@ __device__ glm::vec3 computeVelocityChangeUsingGrid(int index, int start, int en
         }
     }
 
-    if (numOfNeighborsP != 0 || numOfNeighborsV != 0) {
+    if (numOfNeighborsP != 0) {
         perceivedCenter /= numOfNeighborsP;
+    }
+
+    if (numOfNeighborsV != 0) {
         perceivedVelocity /= numOfNeighborsV;
     }
 
@@ -536,8 +542,11 @@ __global__ void kernUpdateVelNeighborSearchScattered(
         }
     }
 
-    if (numOfNeighborsP != 0 || numOfNeighborsV != 0) {
+    if (numOfNeighborsP != 0) {
         perceivedCenter /= numOfNeighborsP;
+    }
+
+    if (numOfNeighborsV != 0) {
         perceivedVelocity /= numOfNeighborsV;
     }
 
@@ -638,8 +647,11 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         }
     }
 
-    if (numOfNeighborsP != 0 || numOfNeighborsV != 0) {
+    if (numOfNeighborsP != 0) {
         perceivedCenter /= numOfNeighborsP;
+    }
+
+    if (numOfNeighborsV != 0) {
         perceivedVelocity /= numOfNeighborsV;
     }
 
