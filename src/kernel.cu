@@ -8,7 +8,7 @@
 #include "kernel.h"
 
 
-#define SINGLE_WIDTH 1;
+#define SINGLE_WIDTH 0;
 
 // LOOK-2.1 potentially useful for doing grid-based neighbor search
 #ifndef imax
