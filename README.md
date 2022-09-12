@@ -6,7 +6,20 @@ CUDA Project 1 -  Flocking
   * [LinkedIn](https://www.linkedin.com/in/runshi-gu-445648194/)
 * Tested on: Windows 10, AMD Ryzen 7 5800X 8-Core Processor @ 3.80 GHz 32GB, RTX3070 24538MB, Personal
 
-## Showcase
+## Visuals
+
+* 5k boids Naive method
+
+![](images/analysis/5000Boids.gif)
+
+* 100k boids Coherent method
+
+![](images/analysis/100kCoh.gif)
+
+
+* 200k boids Scattered method
+
+![](images/analysis/200kSca.gif)
 
 ## Performance Analysis
 
