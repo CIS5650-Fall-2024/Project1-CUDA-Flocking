@@ -15,4 +15,9 @@ Project 1 - Flocking**
 * Tested on: Windows 10, Ryzen 7 5800X 8 Core 3.80 GHz, NVIDIA GeForce RTX 3080 Ti 12 GB
 
 ### Performance Analysis
+* Average Frame Rate vs. Number of Boids (with visualization)
+![](images/pa1.png)
+* Average Frame Rate vs. Number of Boids (without visualization)
+![](images/pa2.png)
+
 ### Questions and Answers
