@@ -220,6 +220,11 @@ void initShaders(GLuint * program) {
     Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
 
+    // For performance analysis
+    double fpsTotal = 0;
+    int frameSteps = 0;
+    double startTime = glfwGetTime();
+
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
 
@@ -241,6 +246,11 @@ void initShaders(GLuint * program) {
       ss << " fps] " << deviceName;
       glfwSetWindowTitle(window, ss.str().c_str());
 
+      if (time - startTime < 50.0) {
+          fpsTotal += fps;
+          ++frameSteps;
+      }
+      
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       #if VISUALIZE
@@ -256,6 +266,7 @@ void initShaders(GLuint * program) {
       glfwSwapBuffers(window);
       #endif
     }
+    std::cout << "Average FPS: " << fpsTotal / frameSteps << std::endl;
     glfwDestroyWindow(window);
     glfwTerminate();
   }

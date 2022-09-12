@@ -1,7 +1,7 @@
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture,
 Project 1 - Flocking**
 
-![Boids Cover Image](images/Boids%20Cover.png)
+![Boids Cover Image](images/Boids%20Cover.PNG)
 
 * Megan Reddy
   * [LinkedIn](https://www.linkedin.com/in/meganr25a949125/), [personal website](https://meganr28.github.io/)
@@ -177,7 +177,7 @@ A GPU's main goal is to hide latency by switching between threads. Similarly, th
 hardware busy by executing other warps (groups of 32 threads) when others are stalled. The number of active warps
 relative to the maximum possible number of active warps at a time is known as occupancy. I chose multiples of 32 for 
 my block sizes in order to maximize occupancy and increase performance, though this is not always the case as seen in the graphs.
-There is a slight performance increase until 256-512 threads are reached for some implementations, but afterwards, the gains
+There is a slight performance increase until about 256-512 threads are reached for some implementations. Afterwards, the gains
 from additional occupancy is negligible. As a whole, increasing block size did not have much of an impact on performance for the
 chosen block sizes. If I had chosen block sizes that were not multiples of 32, I might
 have seen a decrease in performance due to unused threads and lower occupancy. 
@@ -185,16 +185,16 @@ have seen a decrease in performance due to unused threads and lower occupancy.
 **3. For the coherent uniform grid: did you experience any performance improvements
 with the more coherent uniform grid? Was this the outcome you expected?
 Why or why not?** \
-Yes, I did see a performance improvement with the coherent uniform grid. I expected this as the
-outcome since there were a two memory reads that were removed, thus the performance should
-have been better. Reading and writing from global memory is slow on the GPU, therefore less of these accesses
-are more desirable. 
+Yes, I did see a performance improvement with the coherent uniform grid. I expected this  since there were 
+two memory reads that were removed, thus the performance should have been better. 
+Reading and writing from memory is slow on the GPU, therefore reducing these accesses
+is desirable. Additionally, placing the position and velocity in contiguous memory reduces the number 
+of random accesses that occur.
 
 **4. Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
 Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
 that 27-cell is slower simply because there are more cells to check!** \
-Yes, I (mostly) noticed a speed increase when running with 27 cells vs. running with 8 cells. This was especially noticeable
+Yes, I noticed a speed increase when running with 27 cells vs. running with 8 cells. This was especially noticeable
 when running simulations with more than 10000 boids. When `cellWidth` is greater than `searchRadius`, this means that you have 
 to search a larger portion of the grid, which will be slower (as is the case with searching 8 neighboring cells). When `cellWidth` 
 is less than or equal `searchRadius`, the grid resolution is finer, therefore the search space is more confined (as is the case with 27 cells). 
-However, this could mean looping through more cells, which could cause more divergence. 
