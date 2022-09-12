@@ -34,16 +34,20 @@ I thought this blooper was an interesting visualization, totally wrong of course
 
 Charts - To be updated
 
-For each implementation, how does changing the number of boids affect performance? Why do you think this is?
-1. As the number of boids increase, the performance drops in both naive and uniform grid methods. This is because the number of neighboring boids increases as each cell gets more densely packed. Since we are running 1 thread per boid for calculating updated velocities, each thread has to take more velocities into account for this calculation, thus affecting the overall performance.
+**Q. For each implementation, how does changing the number of boids affect performance? Why do you think this is?**
 
-For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
-2. To be answered
+**A.** As the number of boids increase, the performance drops in both naive and uniform grid methods. This is because the number of neighboring boids increases as each cell gets more densely packed. Since we are running 1 thread per boid for calculating updated velocities, each thread has to take more velocities into account for this calculation, thus affecting the overall performance.
 
-For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
-3. To be answered
+**Q. For each implementation, how does changing the block count and block size affect performance? Why do you think this is?**
 
-Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
-4. For a large number of boids, reduced cellWidth and comparison with 27 neighboring cells gives better performance. This might be because each thread does not have to determine which closest 8 cells among its neighbors have boids affecting its velocity. Also, even if the number of cells is more, the total number of affecting boids may be less since the cell width has been reduced. The results may also depend on whether the cell width is lesser than the smallest radius of boid influence or is it equal to the largest boid influence distance.
+**A.** To be answered
+
+**Q. For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?**
+
+**A.** To be answered
+
+**Q. Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!**
+
+**A.** For a large number of boids, reduced cellWidth and comparison with 27 neighboring cells gives better performance. This might be because each thread does not have to determine which closest 8 cells among its neighbors have boids affecting its velocity. Also, even if the number of cells is more, the total number of affecting boids may be less since the cell width has been reduced. The results may also depend on whether the cell width is lesser than the smallest radius of boid influence or is it equal to the largest boid influence distance.
 
 
