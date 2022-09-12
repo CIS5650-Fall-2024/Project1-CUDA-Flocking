@@ -16,5 +16,5 @@ This project implements a flocking simulation based on the Reynolds Boids algori
 ![](images/Coherent_40000boids.gif)
 *Coherent Uniform Grid Algorithm with 40000 boids and 128 block size.*
 
-![](images/Coherent_100000boids.gif)
+![](images/Coherent_80000boids.gif)
 *Coherent Uniform Grid Algorithm with 40000 boids and 128 block size.*
