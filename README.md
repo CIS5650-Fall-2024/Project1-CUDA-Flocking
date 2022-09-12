@@ -87,8 +87,8 @@ that 27-cell is slower simply because there are more cells to check!**
 
 My understanding is that given scene scale 100 and 100,000 boids, decreasing cell size
 (thus checking more cells) will increase performance. This is because given the same density
-of boids in a cell, we can check more cells and run more calculations in parallel. However,
-if the scene scale were larger with the same number of boids, then this could potentially 
+of boids in a cell, we can check more cells in parallel and run less sequential operations 
+for each cell. However, if the scene scale were larger with the same number of boids, then this could potentially 
 decrease efficiency, because 
 
 To test my thinking, I used the following two scenarios:
