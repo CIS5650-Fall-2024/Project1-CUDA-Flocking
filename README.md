@@ -90,11 +90,10 @@ decrease efficiency, because
 
 To test my thinking, I used the following two scenarios:
 
-_Constants: 
+_Constants:_ 
 
-_Coherent grid
-
-_Number of boids: 100,000 
+* _Coherent grid_
+* _Number of boids: 100,000_ 
 
 1. Scene Scale: 100
 
