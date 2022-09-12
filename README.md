@@ -9,7 +9,7 @@ Project 1 - Flocking**
 I implemented 3 ways to find neighbors of boids for velocity computation and flocking boids simulation.
 * Naive method: Simply check through all of boids to find neighbors of a boid.
 * Scattered uniform grid: Put boids in uniform grids based on their position, and then find neighbor grids in order to find neighbor boids.
-* Coherent unfiform grid: Use the uniform grid method, and rearrange position and velocity data so that they are contiguous in memory.
+* Coherent uniform grid: Use the uniform grid method, and rearrange position and velocity data so that they are contiguous in memory.
 
 # Screenshots
 ![](images/screenshot1.PNG)
