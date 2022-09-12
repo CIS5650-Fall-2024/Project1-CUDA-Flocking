@@ -32,7 +32,7 @@ Increasing the number of boids would decreased performance across all implementa
 * For each implementation, how does changing the block count and block size
 affect performance? Why do you think this is?
 
-![](images/BlockCountVFPS.png)
+![](images/BlockCountVFPS1.png)
 
 BlockCount is inversely correlated with the length of the GridCellWidth: the larger the width of the cell, the less blocks can fit in the total grid, meaning that block count will be lower. We observe that performance worsens as GridCellWidth increases; I believe this is because increasing gridCellWidth will eventually have us converge back upon the Naive implementation since we'd be comparing against all the boids in the grid.
 
