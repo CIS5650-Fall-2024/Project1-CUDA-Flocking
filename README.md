@@ -30,3 +30,6 @@ This project implements a flocking simulation based on the Reynolds Boids algori
 
 * For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
   * The performance is greatly improved by the more coherent uniform grid algorithm. The framerate per second drops to around 60 with 300000 boids for uniform grid algorithm. However, the framerate per second stays 90 even with 1000000 boids for the more coherent uniform grid algorithm. As a reference, the framerate per second of the naive algorithm drops to 8 with only 100000 boids. 
+
+* Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
+  * Changing cell width and checking 27 is actually performs better than 8 neighboring cells using the coherent uniform grid algorithm. While 27 cells increases the search range for each boids, they also eliminate the time of finding which quadrant the boid belongs to and thus reduce some of the memory access. However, the conclusion is not true if the number of boids reaches a really high number like 1000000. In this case, it
