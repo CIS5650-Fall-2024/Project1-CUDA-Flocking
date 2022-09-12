@@ -11,20 +11,24 @@ Project 1 - Flocking**
 
 Demos:
 
+Naive
 ![](images/Naive.gif)
+
+Scattered Uniform Grid
 ![](images/ScatterGrid.gif)
+
+Coherent Uniform Grid
 ![](images/CoherentGrid.gif)
-
-![](images/BlockCountVFPS.png)
-
-![](images/BlockSizeVFPS.png)
-
-![](images/BoidsVFPS.png)
 
 * For each implementation, how does changing the number of boids affect
 performance? Why do you think this is?
+![](images/BoidsVFPS.png)
+
 * For each implementation, how does changing the block count and block size
 affect performance? Why do you think this is?
+![](images/BlockCountVFPS.png)
+![](images/BlockSizeVFPS.png)
+
 * For the coherent uniform grid: did you experience any performance improvements
 with the more coherent uniform grid? Was this the outcome you expected?
 Why or why not?
