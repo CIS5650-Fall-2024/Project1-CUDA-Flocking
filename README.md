@@ -77,7 +77,9 @@ Why or why not?**
 I experienced a significant performance improvement with coherent uniform grid when the boid number
 is very high. For example, on 500,000 boids, coherent grid can comfortably give me ~130 FPS, while
 uniform grid just about dies at ~6 FPS. For fewer boids, the performance improvement is not that obvious (for example, 
-FPS is fairly similar between coherent and uniform grids when we have 5,000 boids.)
+FPS is fairly similar between coherent and uniform grids when we have 5,000 boids.) This outcome is expected, because 
+when the number of boids is higher, each cell also contains a lot more boids. If the information is not contiguous in 
+memory, the impact of checking many boids whose information is further apart is more noticeable.
 
 **Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
 Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
