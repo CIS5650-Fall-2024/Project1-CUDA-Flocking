@@ -14,11 +14,11 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 1
-#define COHERENT_GRID 1
+#define UNIFORM_GRID 0
+#define COHERENT_GRID 0
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS = 200000;
 const float DT = 0.2f;
 
 /**
@@ -216,6 +216,9 @@ void initShaders(GLuint * program) {
     double fps = 0;
     double timebase = 0;
     int frame = 0;
+    
+    int totalFrame = 0;
+    int secCount = 0;
 
     Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
@@ -229,6 +232,10 @@ void initShaders(GLuint * program) {
       if (time - timebase > 1.0) {
         fps = frame / (time - timebase);
         timebase = time;
+        
+        totalFrame += frame;
+        secCount += 1;
+        
         frame = 0;
       }
 
@@ -258,6 +265,9 @@ void initShaders(GLuint * program) {
     }
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    double endTime = glfwGetTime();
+    std::cout << "Average Frame: " << totalFrame / secCount << std::endl;
   }
 
 
@@ -269,6 +279,15 @@ void initShaders(GLuint * program) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
       glfwSetWindowShouldClose(window, GL_TRUE);
     }
+    // P to pause, R to resume, change DT to non-const to enable this
+    /*
+    if (key == GLFW_KEY_P && action == GLFW_PRESS) {
+        DT = 0.f;
+    }
+    if (key == GLFW_KEY_R && action == GLFW_PRESS) {
+        DT = 0.2f;
+    }
+    */
   }
 
   void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {

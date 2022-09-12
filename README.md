@@ -1,5 +1,10 @@
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture,
 Project 1 - Flocking**
+### Screenshots
+![](images/b-5000.gif)
+![](images/b-50000.gif)
+![](images/b-500000.gif)
+![](images/b-1000000.gif)
 
 * Haoquan Liang
   * [LinkedIn](https://www.linkedin.com/in/leohaoquanliang/)
