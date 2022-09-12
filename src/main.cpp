@@ -14,22 +14,50 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
+
+#define DATA_COLLECTION_AVG_FPS 1
+#define DATA_COLLECTION_FPS_OVER_TIME 0
+
+#define FRAMES_TO_RECORD 20
+
+#ifdef DATA_COLLECTION_AVG_FPS
+int fps_record[FRAMES_TO_RECORD];
+#endif
+
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
-const float DT = 0.2f;
+const int N_FOR_VIS = 5000000;
+const float DT = 1.75f;
+
+int wait_for_gif_recorder = 0;
 
 /**
 * C main function.
 */
 int main(int argc, char* argv[]) {
   projectName = "565 CUDA Intro: Boids";
+  using namespace std::this_thread; // sleep_for, sleep_until
+  using namespace std::chrono; // nanoseconds, system_clock, seconds
+
+  
 
   if (init(argc, argv)) {
+      sleep_for(seconds(10));
     mainLoop();
     Boids::endSimulation();
+#ifdef DATA_COLLECTION_AVG_FPS
+    int average_fps = 0;
+    std::cout << "{ ";
+    for (int i = 0; i < FRAMES_TO_RECORD; ++i) {
+        average_fps += fps_record[i];
+        std::cout << fps_record[i] << " ";
+    }
+    std::cout << " }" << std::endl;
+    average_fps /= FRAMES_TO_RECORD;
+    std::cout << N_FOR_VIS << " " << average_fps << std::endl;
+#endif
     return 0;
   } else {
     return 1;
@@ -217,10 +245,16 @@ void initShaders(GLuint * program) {
     double timebase = 0;
     int frame = 0;
 
+    int seconds = 0;
+
     Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
 
     while (!glfwWindowShouldClose(window)) {
+#ifdef DATA_COLLECTION_AVG_FPS
+        if (seconds > FRAMES_TO_RECORD) break;
+#endif
+        
       glfwPollEvents();
 
       frame++;
@@ -230,6 +264,10 @@ void initShaders(GLuint * program) {
         fps = frame / (time - timebase);
         timebase = time;
         frame = 0;
+#ifdef DATA_COLLECTION_AVG_FPS
+        if (seconds > 0) fps_record[seconds - 1] = fps;
+#endif
+        ++seconds;
       }
 
       runCUDA();
@@ -299,6 +337,8 @@ void initShaders(GLuint * program) {
     cameraPosition.z = zoom * cos(theta);
     cameraPosition.y = zoom * cos(phi) * sin(theta);
     cameraPosition += lookAt;
+
+    std::cout << "phi, theta " << phi << " " << theta << std::endl;
 
     projection = glm::perspective(fovy, float(width) / float(height), zNear, zFar);
     glm::mat4 view = glm::lookAt(cameraPosition, lookAt, glm::vec3(0, 0, 1));

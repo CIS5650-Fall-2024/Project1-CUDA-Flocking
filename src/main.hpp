@@ -5,6 +5,8 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <chrono>
+#include <thread>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cuda_runtime.h>
@@ -43,11 +45,12 @@ int pointSize = 2;
 // For camera controls
 bool leftMousePressed = false;
 bool rightMousePressed = false;
+bool middleMousePressed = false;
 double lastX;
 double lastY;
-float theta = 1.22f;
-float phi = -0.70f;
-float zoom = 4.0f;
+float theta = 1.47f;
+float phi = -.755468f;
+float zoom = 1.7f;
 glm::vec3 lookAt = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 cameraPosition;
 
