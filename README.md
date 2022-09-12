@@ -16,31 +16,20 @@ Project 1 - Flocking**
 ![](images/5000_boids_1_dt.gif)
 5000 boids, 1.0 dt timestep
 
-![](images/500_boids_1_dt.gif)
-500 boids, 1.0 dt timestep
-
-![](images/500000_boids_1_dt.gif)
-500000 boids, 1.0 dt timestep
-
-![](images/quarter_distances_maxspeed.gif)
-50000 boids, 1.0 dt timestep, 0.25 maxspeed, neighborhood search distances multiplied by 0.5
-
-![](images/more_distance_half_maxspeed.gif)
-50000 boids, 1.0 dt timestep, 0.5 maxspeed, neighborhood search distances multiplied by 1.35x
-
 **Performance Analysis**
 
-For each implementation, how does changing the number of boids affect performance? Why do you think this is?
+As can be seen by the below two graphs, increasing the number of boids simulated results in a larger runtime.
 
 ![](images/boids_vs_fps.png)
 ![](images/boids_vs_fps_with_vis.png)
 
-For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
-
+Below is a graph measuring the impact of various block sizes, i.e. the number of threads allocated to each block. 
+As shown, the runtime of the grid-based simulation stays relatively constant at levels greater than 256, where it peaks.
+Block size values less than this result in penalties in performance.
+Note that all block sizes measured are multiples of 32. If a block size is not a factor of 32, this will result in .
 ![](images/blocksize_vs_fps.png)
 
-For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
-
+As expected, the coherent grid simulation was faster than the 
 
 Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
 
@@ -48,9 +37,7 @@ Did changing cell width and checking 27 vs 8 neighboring cells affect performanc
 
 ### Bloopers
 
-![](images/blooper_nightsky.PNG)
-![](images/blooper_vacuum.PNG)
-![](images/blooper_graydeath.PNG)
-![](images/blooper1.gif)
-![](images/blooper2.gif)
-![](images/blooper3.gif)
+![](images/bloopers/blooper_graydeath.PNG)
+Blooper caused by accessing wrong index values for boid position and velocity arrays.
+
+For more bloopers, see images/bloopers.
