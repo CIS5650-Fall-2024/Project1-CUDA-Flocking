@@ -9,7 +9,7 @@ Project 1 - Flocking**
 
 ### ReadMe
 
-![]{images/BlockCountVFPS.png}
+![](images/BlockCountVFPS.png)
 
 * For each implementation, how does changing the number of boids affect
 performance? Why do you think this is?
