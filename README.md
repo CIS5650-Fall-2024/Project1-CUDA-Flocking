@@ -24,5 +24,6 @@ This project implements a flocking simulation based on the Reynolds Boids algori
 ![](images/p_boids.png)
 * For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
   * Changing the block count doesn't affect performance during my testing. Changing the block size, however, influcences the performance in a 'weird' way shown by the figure below. 
-  * The results show that 
+  * The results show that increasing the block size could hurt the performance. One reason could that many threads share the common memory resource in a block and too many threads can cause the need of reuse registers and memory space. 
+
 ![](images/p_block.png)
