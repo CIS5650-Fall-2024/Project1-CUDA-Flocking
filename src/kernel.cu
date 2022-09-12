@@ -511,6 +511,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     glm::vec3 perceived_center, rule2C, perceived_velocity;
     int num_of_neighbors_rule1 = 0;
     int num_of_neighbors_rule3 = 0;
+
     // - For each cell, read the start/end indices in the boid pointer array.
     for (int z = indexZ - 0.5f; z <= indexZ + 0.5f; z++) {
         for (int y = indexY - 0.5f; y <= indexY + 0.5f; y++) {
@@ -580,9 +581,6 @@ void Boids::stepSimulationNaive(float dt) {
     std::swap(dev_vel1, dev_vel2);
 }
 
-float milliseconds_prev = 0.01536;
-float milliseconds_this = 0;
-
 void Boids::stepSimulationScatteredGrid(float dt) {
      /*TODO-2.1
      Uniform Grid Neighbor search using Thrust sort.
@@ -611,11 +609,7 @@ void Boids::stepSimulationScatteredGrid(float dt) {
     // - Naively unroll the loop for finding the start and end indices of each
     //   cell's data pointers in the array of boid indices
     
-    //set all start and end to -1 to easily remove unused grid
-    kernResetIntBuffer << <UniformGridNum, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
-    //kernResetIntBuffer << <UniformGridNum, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
-
-    
+    kernResetIntBuffer <<<UniformGridNum, blockSize >>> (gridCellCount, dev_gridCellStartIndices, -1);
 
     kernIdentifyCellStartEnd <<<fullBlocksPerGrid, blockSize >>>(
         numObjects, 
@@ -624,30 +618,20 @@ void Boids::stepSimulationScatteredGrid(float dt) {
         dev_gridCellEndIndices);
 
 
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
-
     // - Perform velocity updates using neighbor search
     kernUpdateVelNeighborSearchScattered <<<fullBlocksPerGrid, blockSize >>> (
-                                                                                numObjects, 
-                                                                                gridSideCount,
-                                                                                gridMinimum,
-                                                                                gridInverseCellWidth, 
-                                                                                gridCellWidth,
-                                                                                dev_gridCellStartIndices, 
-                                                                                dev_gridCellEndIndices,
-                                                                                dev_particleArrayIndices,
-                                                                                dev_pos, 
-                                                                                dev_vel1, 
-                                                                                dev_vel2);
-    // - Update positions
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    std::cout << milliseconds << std::endl;
+        numObjects, 
+        gridSideCount,
+        gridMinimum,
+        gridInverseCellWidth, 
+        gridCellWidth,
+        dev_gridCellStartIndices, 
+        dev_gridCellEndIndices,
+        dev_particleArrayIndices,
+        dev_pos, 
+        dev_vel1, 
+        dev_vel2);
+    // - Update position
 
     kernUpdatePos<<<fullBlocksPerGrid, blockSize >>>(
         numObjects, 
@@ -679,71 +663,58 @@ void Boids::stepSimulationCoherentGrid(float dt) {
     dim3 UniformGridNum((gridCellCount + blockSize - 1) / blockSize);
 
     kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (
-                                                                numObjects,
-                                                                gridSideCount,
-                                                                gridMinimum,
-                                                                gridInverseCellWidth,
-                                                                dev_pos,
-                                                                dev_particleArrayIndices,
-                                                                dev_particleGridIndices);
+        numObjects,
+        gridSideCount,
+        gridMinimum,
+        gridInverseCellWidth,
+        dev_pos,
+        dev_particleArrayIndices,
+        dev_particleGridIndices);
 
     // - Unstable key sort using Thrust. A stable sort isn't necessary, but you
     //   are welcome to do a performance comparison.
     thrust::sort_by_key(
-                        dev_thrust_particleGridIndices,
-                        dev_thrust_particleGridIndices + numObjects,
-                        dev_thrust_particleArrayIndices);
+        dev_thrust_particleGridIndices,
+        dev_thrust_particleGridIndices + numObjects,
+        dev_thrust_particleArrayIndices);
     // - Naively unroll the loop for finding the start and end indices of each
     //   cell's data pointers in the array of boid indices
 
     kernRearrangeBoidPosVel << <fullBlocksPerGrid, blockSize >> > (
-                                                                    numObjects,
-                                                                    dev_particleArrayIndices,
-                                                                    dev_pos,
-                                                                    dev_pos_rearrange,
-                                                                    dev_vel1,
-                                                                    dev_vel_rearrange);
+        numObjects,
+        dev_particleArrayIndices,
+        dev_pos,
+        dev_pos_rearrange,
+        dev_vel1,
+        dev_vel_rearrange);
 
-    //set all start/end to -1 to easily remove unused grid
     kernResetIntBuffer <<<UniformGridNum, blockSize >>> (gridCellCount, dev_gridCellStartIndices, -1);
-    //kernResetIntBuffer << <UniformGridNum, blockSize >>> (gridCellCount, dev_gridCellEndIndices, -1);
 
     kernIdentifyCellStartEnd <<<fullBlocksPerGrid, blockSize >>> (
-                                                                numObjects,
-                                                                dev_particleGridIndices,
-                                                                dev_gridCellStartIndices,
-                                                                dev_gridCellEndIndices);
+        numObjects,
+        dev_particleGridIndices,
+        dev_gridCellStartIndices,
+        dev_gridCellEndIndices);
     // - Perform velocity updates using neighbor search
-        
-
-    //cudaEvent_t start, stop;
-    //cudaEventCreate(&start);
-    //cudaEventCreate(&stop);
-    //cudaEventRecord(start);
 
     kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (
-                                                                                numObjects,
-                                                                                gridSideCount,
-                                                                                gridMinimum,
-                                                                                gridInverseCellWidth,
-                                                                                gridCellWidth,
-                                                                                dev_gridCellStartIndices,
-                                                                                dev_gridCellEndIndices,
-                                                                                dev_pos_rearrange,
-                                                                                dev_vel_rearrange,
-                                                                                dev_vel2);
-    //cudaEventRecord(stop);
-    //cudaEventSynchronize(stop);
-    //float milliseconds = 0;
-    //cudaEventElapsedTime(&milliseconds, start, stop);
-    //std::cout << milliseconds << std::endl;
-    //
+        numObjects,
+        gridSideCount,
+        gridMinimum,
+        gridInverseCellWidth,
+        gridCellWidth,
+        dev_gridCellStartIndices,
+        dev_gridCellEndIndices,
+        dev_pos_rearrange,
+        dev_vel_rearrange,
+        dev_vel2);
+
     // - Update positions
     kernUpdatePos <<<fullBlocksPerGrid, blockSize >>> (
-                                                        numObjects,
-                                                        dt,
-                                                        dev_pos_rearrange,
-                                                        dev_vel2);
+        numObjects,
+        dt,
+        dev_pos_rearrange,
+        dev_vel2);
     // - Ping-pong buffers as needed
     std::swap(dev_pos, dev_pos_rearrange);
     std::swap(dev_vel1, dev_vel2);
