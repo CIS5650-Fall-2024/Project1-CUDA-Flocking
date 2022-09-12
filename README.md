@@ -15,7 +15,7 @@ The average FPS of the first 10 second is measured; reasonable amount of waiting
 The results show that the FPS drops significantly as boid number increases; the difference between scattered and coherent memory method is more noticable as the number of boids increases. 
 However, no significant differences among different block sizes at the same boid size. 
 ![](images/fps.png)
-![](images/fps2png)
+![](images/fps2.png)
 
 ### Questions
 
