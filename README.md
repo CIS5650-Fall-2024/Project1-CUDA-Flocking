@@ -7,8 +7,10 @@ Project 1 - Flocking**
 
 
 # Project Description
-![Flocking Simulation GIF](/images/result.gif)
-Uniformed Gird, Coherent Memory Buffer, 500,000 Boids.
+<img src="/images/result2.gif"  width="600">
+Uniformed Gird, Coherent Memory Buffer, 100,000 Boids.
+<img src="/images/result.gif"  width="700">
+Uniformed Gird, Coherent Memory Buffer, 50,000 Boids.
 
 This project is about creating a Boids flocking simulation. 
 Particles(boids) behave according to three rules:
