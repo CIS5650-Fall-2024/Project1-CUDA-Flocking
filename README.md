@@ -27,3 +27,6 @@ This project implements a flocking simulation based on the Reynolds Boids algori
   * The results show that increasing the block size could hurt the performance. One reason could that many threads share the common memory resource in a block and too many threads can cause the need of reuse registers and memory space. 
 
 ![](images/p_block.png)
+
+* For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+  * The performance is greatly improved by the more coherent uniform grid algorithm. The framerate per second drops to around 60 with 300000 boids for uniform grid algorithm. However, the framerate per second stays 90 even with 1000000 boids for the more coherent uniform grid algorithm. As a reference, the framerate per second of the naive algorithm drops to 8 with only 100000 boids. 
