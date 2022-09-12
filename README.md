@@ -12,7 +12,7 @@ simulating even 5,000,000 boids at real-time rates (>30 fps)**
 ### Results
 
 ![](images/results/5000000_boids_smaller.gif)
-*Figure 1: 5000000 boids, 1.75 dt timestep, 400.0 scene scale, 1.5 max speed*
+*Figure 1: 5000000 boids, 1.75 dt, 400.0 scene scale, 1.5 max speed*
 
 
 ![](images/results/5000_boids_02_dt.gif)
