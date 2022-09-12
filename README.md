@@ -78,7 +78,26 @@ Why or why not?
 Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
 that 27-cell is slower simply because there are more cells to check!
 
-I used the following two scenarios to test:
+My understanding is that given scene scale 100 and 100,000 boids, decreasing cell size
+(thus checking more cells) will increase performance. This is because given the same density
+of boids in a cell, we can check more cells and run more calculations in parallel. However,
+if the scene scale were larger with the same number of boids, then this could potentially 
+decrease efficiency, because 
+
+To test my thinking, I used the following two scenarios:
+Optimization: Coherent grid
+Number of boids: 100,000 
+
+1. Scene Scale: 100
+Cell width: 2 * neighborhood
+Cell width: neighborhood
+
+2. Scene Scale: 200
+Cell width: 2 * neighorbhood
+Cell Width: neighborhood
+
+
+
 
 ## Part 4: More Images and Results!
 ![](images/naive50k.png)
