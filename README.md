@@ -22,4 +22,5 @@ This project implements a flocking simulation based on the Reynolds Boids algori
   * The results indicate that 100000 boids is still far away from the limit of Coherent Algorithm. For Naive Algorithm, each thread will search through every other boids in the environment and thus it has the worst performance. For Uniform Algorithm, as number of boids increases, its neighbor candidates increases but the range of searching is 8 grid cells by maximum and thus the performance will not be damaged too bad. The Coherent Algorithm, however, optimize the memeory access which utilizes the power of contiguous memory on blocks. Remeber most of the slowness is caused by memory accessing. 
 ![](images/p_boids.png)
 * For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
-  * sdfljkahsdf
+  * Changing the block count doesn't affect performance during my testing. Changing the block size, however, influcences the performance in a 'weird' way shown by the figure below. 
+![](images/p_block.png)
