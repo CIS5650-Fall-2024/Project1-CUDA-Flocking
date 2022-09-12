@@ -736,10 +736,8 @@ void Boids::stepSimulationCoherentGrid(float dt) {
   dim3 fullBlocksPerGrid((N + blockSize - 1) / blockSize);
   dim3 fullBlocksPerGridCells((gridCellCount + blockSize - 1) / blockSize);
 
-  // update positions first
-  kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (N, dt, dev_pos, dev_vel1);
-
   // currently, particleArrayIndices[0] = 0, [1] = 1 ...
+  // dev_pos and dev_vel1 are the original parallel position/velocity arrays
   kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (N, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos, dev_particleArrayIndices, dev_particleGridIndices);
   thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + N, dev_thrust_particleArrayIndices);
 
@@ -751,11 +749,14 @@ void Boids::stepSimulationCoherentGrid(float dt) {
   kernResetIntBuffer << <fullBlocksPerGridCells, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
   kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (N, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 
+  // Now dev_vel2 is the old (sorted) velocity, dev_vel1 is recycled for us to write the new velocity into
   kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (N, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices,
     dev_pos2, dev_vel2, dev_vel1);
 
+  kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (N, dt, dev_pos2, dev_vel2);
+
+  // Swap dev_pos to be sorted dev_pos2 to match the sorted new dev_vel1. Terrible variable names here
   std::swap(dev_pos, dev_pos2);
-  std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::endSimulation() {
