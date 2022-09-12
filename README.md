@@ -41,24 +41,24 @@ Project 1 - Flocking**
 |:--:| 
 | *Effects of Block SIze* |
 
-## Answers:
+## Questions:
 
 - For each implementation, how does changing the number of boids affect performance? Why do you think this is?
   
   **Answer**: 
 For the naïve implementation, increasing the number of boids will significantly affect performance. The complexity O(n^2) is exponential related to the number of boids since we need to calculate the distance between every boids
-For uniform grid methods, the effect is not that obvious as the naive implementation since we only calculate the distance between boids among 8 out of 27 grids. 
+For uniform grid methods, the effect is not that obvious as the naive implementation since we only calculate the distance between boids among 8 out of 27 grids (the effects will be lifted). 
 
 - For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
  
-  **Answer**: For all the implementations, increasing the block size before 64 will increase the performance, However, after block size of 64, increasing the size will slightly reduce the performance. This could be explained by the idle thread wasted.
-
+    **Answer**: For all the implementations, increasing the block size before it reaches 64 will increase the performance, However, while greater than 64, increasing the size will slightly reduce the performance. This might be explained by the idle thread wasted.
+  
 - For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
  
- **Answer**: 
-  Coherent uniform grid's influence on performance improves as the number of boids increases. It can be explained by the increasing cost of data transfer for large number of boids. 
+    **Answer**: 
+    Coherent uniform grid's influence on performance improves as the number of boids increases. It can be explained by the increasing cost of data transfer for large number of boids. 
 
 - Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
 
- **Answer**: 
-Changing to 27 cells will significantly improve the performance. This effect is especially obvious when boids are super-dense in the grid, because simply searching through 27 cells may be more efficient than calculating the nearest neighborhoods. 
+  **Answer**: 
+  Changing to 27 cells will significantly improve the performance. This effect is especially obvious when boids are super-dense in the grid, because simply searching through 27 cells may be more efficient than calculating the nearest neighborhoods. 
