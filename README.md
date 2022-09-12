@@ -70,6 +70,25 @@ _Coherent Grid Flocking with 5,000 boids_
 
 ![Graph 2](images/graph2.png)
 
+**For each implementation, how does changing the number of boids affect
+performance? Why do you think this is?**
+
+Across all three implementations, increasing the number of boids will decrease FPS. 
+If the scene scale is the same, then each cell will become more dense as boids increase,
+which means each boid will need to run more sequential operations to check the increased
+number of valid neighbors. 
+
+**For each implementation, how does changing the block count and block size
+affect performance? Why do you think this is?**
+
+As seen from the graph, smaller block count usually results in poorer performance before a certain 
+blockSize is hit. For example, there is a big difference between blockSize == 16 and blockSize == 4, however,
+above blockSize 32 is relatively similar in FPS performance. This behavior is not easily seen in simulations 
+with fewer boids (N = 5,000). This is likely because when blockSize is small, there are less threads that can run 
+in parallel. When blockSize is large, more and more threads can run the same program at the same time. However,
+if the number of threads exceed the number of parallel operations, then there won't be much performance enahancement
+anymore.
+
 **For the coherent uniform grid: did you experience any performance improvements
 with the more coherent uniform grid? Was this the outcome you expected?
 Why or why not?**
