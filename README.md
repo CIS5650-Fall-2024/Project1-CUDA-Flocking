@@ -9,7 +9,17 @@ Project 1 - Flocking**
 
 ### ReadMe
 
+Demos:
+
+![](images/Naive.gif)
+![](images/ScatterGrid.gif)
+![](images/CoherentGrid.gif)
+
 ![](images/BlockCountVFPS.png)
+
+![](images/BlockSizeVFPS.png)
+
+![](images/BoidsVFPS.png)
 
 * For each implementation, how does changing the number of boids affect
 performance? Why do you think this is?
