@@ -5,6 +5,8 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <chrono>
+#include <thread>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cuda_runtime.h>
@@ -43,6 +45,7 @@ int pointSize = 2;
 // For camera controls
 bool leftMousePressed = false;
 bool rightMousePressed = false;
+bool middleMousePressed = false;
 double lastX;
 double lastY;
 float theta = 1.22f;
