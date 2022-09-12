@@ -82,5 +82,17 @@ I used the following two scenarios to test:
 
 ## Part 4: More Images and Results!
 ![](images/naive50k.png)
+
 _Naive Flocking with 50,000 boids_
 
+![](images/big2.gif)
+
+_Coherent Flocking with 100,000 boids_
+
+![](images/big.png)
+
+_Coherent Flocking with 500,000 boids, could not get a gif of this onto github_
+
+![](images/sceneScale200with100kBoids.png)
+
+_100,000 boids on 200 scene scale instead of 100_
