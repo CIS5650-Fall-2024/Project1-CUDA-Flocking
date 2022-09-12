@@ -35,6 +35,16 @@ This is expected because:
 Coherent uniform grid and uniform grid both performed better than naive boid count because naive's O(n) neighbour search time for each boid is just too slow.
 
 #### Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
+Define/undefine #neighbours_27 to check. Halving cell width and checking 27 cells instead does not affect performance much. I tried it on the 5k boid coherent grid with no visualization and frame rate was about the same (2k fps).
+
+In theory, it could make performance worse because:
+- the overhead of calculating grid indices is slightly increased due to having more grid cells to check
+- we essentially still access the exact same set of neighbours (eg. if with 8 cells, we are checking dev_pos from indices 0 to 10, with 27 cells, we will still be checking dev_pos from 0 to 10), meaning performance will be about the same for each boid's neighbourhood calculation, not really improved
+
+On the other hand,
+- there is less branching in the code structure that checks 27 neighbours, that would increase performance
+
+Both are probably not that noticeable though, at least at 5k boids
 
 ![](images/frameratesboidcount.png)
 ![](images/frameratesboidcountwithviz.png)
