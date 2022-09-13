@@ -401,17 +401,23 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
         gridCellStartIndices[thisGrid] = index;
         return;
     }
-    auto previousGrid = particleGridIndices[index - 1];
-    if (thisGrid != previousGrid)
-    {
-        gridCellEndIndices[previousGrid] = index - 1;
-        gridCellStartIndices[thisGrid] = index;
-
-    }
     if (index == (N - 1))
     {
         gridCellEndIndices[thisGrid] = index;
+        return;
     }
+    auto previousGrid = particleGridIndices[index - 1];
+    auto nextGrid = particleGridIndices[index + 1];
+    if (thisGrid != previousGrid)
+    {
+        gridCellStartIndices[thisGrid] = index;
+        
+    }
+    if (thisGrid != nextGrid)
+    {
+        gridCellEndIndices[thisGrid] = index;
+    }
+    
     //Otherwise still in the same cell, do nothing
 }
 
@@ -699,12 +705,10 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         }
         int startIndex = gridCellStartIndices[cell];
         int endIndex = gridCellEndIndices[cell];
-        if (startIndex == -1 || endIndex == -1)
-        {
-            
-            continue;
-        }
-        //Directly Use
+        //if (startIndex == -1 || endIndex == -1)
+        //{
+        //    continue;
+        //}
         for (int b = startIndex; b <= endIndex; b++)
         {
             if (b != index && glm::distance(pos[b], posSelf) < rule1Distance) {
@@ -741,7 +745,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     }
 
     // - Clamp the speed change before putting the new speed in vel2
-    vel2[index] = glm::clamp((v1 + v2 + v3  + vel1[index]), -maxSpeed, maxSpeed);
+    vel2[index] = glm::clamp((v1 + v2 + v3 + vel1[index]), -maxSpeed, maxSpeed);
 }
 
 /**
@@ -803,22 +807,27 @@ void Boids::stepSimulationCoherentGrid(float dt) {
     thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
 // - Naively unroll the loop for finding the start and end indices of each
 //   cell's data pointers in the array of boid indices
-    kernResetIntBuffer << < fullGrid, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
-    kernResetIntBuffer << < fullGrid, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
-    kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
-
+   kernResetIntBuffer << < fullGrid, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
+   kernResetIntBuffer << < fullGrid, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
+   kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 
   // - BIG DIFFERENCE: use the rearranged array index buffer to reshuffle all
   //   the particle data in the simulation array.
   //   CONSIDER WHAT ADDITIONAL BUFFERS YOU NEED
     kernReshuffleVelAndPos << < fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices, dev_pos, dev_shuffledPos, dev_vel1, dev_shuffledVel);
     // - Perform velocity updates using neighbor search
-    kernUpdateVelNeighborSearchCoherent <<< fullBlocksPerGrid, blockSize >> > (numObjects, gridResolution, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_shuffledPos, dev_shuffledVel, dev_vel2);
+    kernUpdateVelNeighborSearchCoherent <<< fullBlocksPerGrid, blockSize >> > (numObjects, gridResolution, gridMinimum, 
+        gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_shuffledPos,
+        dev_shuffledVel, dev_vel1);
     // - Update positions
-    kernUpdatePos << < fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_shuffledPos, dev_vel2);
+    kernUpdatePos << < fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_shuffledPos, dev_vel1);
     //Ping - pong buffers as needed.THIS MAY BE DIFFERENT FROM BEFORE.
-    dev_vel1 = dev_vel2;
+    //dev_vel1 = dev_vel2;
+    //std::swap(dev_pos, dev_shuffledPos);
+
+    glm::vec3* temp = dev_pos;
     dev_pos = dev_shuffledPos;
+    dev_shuffledPos = temp;
 }
 
 void Boids::endSimulation() {
