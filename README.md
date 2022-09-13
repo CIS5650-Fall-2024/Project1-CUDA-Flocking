@@ -9,7 +9,7 @@ Project 1 - Flocking**
 
 ![](images/screenShot.png)
 
-![](images/video.mp4)
+![](images/gif.gif)
 
 ## Performance Analysis
 
