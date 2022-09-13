@@ -402,7 +402,7 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
         return;
     }
     auto previousGrid = particleGridIndices[index - 1];
-    if (thisGrid != previousGrid);
+    if (thisGrid != previousGrid)
     {
         gridCellEndIndices[previousGrid] = index - 1;
         gridCellStartIndices[thisGrid] = index;
