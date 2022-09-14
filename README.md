@@ -41,6 +41,8 @@ Coherent Search Method (N = 50,000):
 
 ## **Performance Analysis**
 
+Avg FPS higher is better.
+
 Figure 1: Different boid numbers (Visual On)
 
 ![](images/BoidNumDiff.png)
