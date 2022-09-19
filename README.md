@@ -1,6 +1,7 @@
-**University of Pennsylvania, CIS 565: GPU Programming and Architecture,
-Project 1 - Flocking**
+Flocking
 ======================
+
+**University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 2**
 
 * Wenqing Wang
   * [LinkedIn](https://www.linkedin.com/in/wenqingwang0910/) 
