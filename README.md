@@ -9,13 +9,13 @@ Project 1 - Flocking**
 * GPU Compatibility: 5.0
 
 # Boids Assemble! #
-
-![](images/50k_default.gif)
-
 ## Introduction
 
 Boids are a computer simulation of an animal(eg. fish/bird) that flies in flocks or swarms.
 In this assignment I have implemented a flocking simulation based on the Reynolds Boids algorithm, optimized using a uniform grid. Another level of optimization to be implemented is using a uniform grid with semi-coherent memory access.
+
+
+![](images/50k_default.gif)
 
 ## Observations
 
