@@ -4,6 +4,10 @@ Project 1 - Flocking**
 * Evan S
 * Tested on: Zephyrus ROG G14 - Windows 11, Ryzen 5800HS @ 3.20GHz, RTX 3060 Notebook
 
+## Overview
+This project focuses on implementing the classic boids flocking algorithm in a CUDA-accelerated environment. 
+This README.md contains larger GIFs that may take some time to load (~50 MB).
+
 ## Visuals
 Boid counts of:  
 5000,  
@@ -12,7 +16,6 @@ Boid counts of:
 ![5k](images/50k.gif)  
 500,000    
 ![5k](images/500k.gif)    
-The larger GIFs may take some time to load (~50 MB).  
 
 ## Performance Analysis
 
