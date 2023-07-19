@@ -35,7 +35,7 @@ const unsigned int PROG_BOID = 0;
 const float fovy = (float) (PI / 4);
 const float zNear = 0.10f;
 const float zFar = 10.0f;
-// LOOK-1.2: for high DPI displays, you may want to double these settings.
+// TUNE - for high DPI displays, you may want to double these settings.
 int width = 1280;
 int height = 720;
 int pointSize = 2;
