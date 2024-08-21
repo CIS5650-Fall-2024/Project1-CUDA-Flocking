@@ -1,4 +1,4 @@
-**University of Pennsylvania, CIS 565: GPU Programming and Architecture,
+**University of Pennsylvania, CIS 5650: GPU Programming and Architecture,
 Project 1 - Flocking**
 
 * (TODO) YOUR NAME HERE

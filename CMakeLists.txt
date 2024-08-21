@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.1)
-project(cis565_boids)
+cmake_minimum_required(VERSION 3.27)
+project(cis5650_boids LANGUAGES CUDA CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -11,6 +11,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Enable C++11 for host code
 set(CMAKE_CXX_STANDARD 11)
+if(NOT DEFINED CMAKE_CUDA_STANDARD)
+    set(CMAKE_CUDA_STANDARD 11)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+endif()
 
 # Set a default build type if none was specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -19,22 +23,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-########################################
-# CUDA Setup
-########################################
-find_package(CUDA 10 REQUIRED)
-include(${CMAKE_MODULE_PATH}/CUDAComputesList.cmake)
-
-list(APPEND CUDA_NVCC_FLAGS ${CUDA_GENERATE_CODE})
-list(APPEND CUDA_NVCC_FLAGS_DEBUG "-g -G")
-set(CUDA_VERBOSE_BUILD ON)
-
-if(WIN32)
-    # Set up include and lib paths
-    set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
-endif(WIN32)
-########################################
-
 find_package(OpenGL REQUIRED)
 
 if(UNIX)
@@ -42,7 +30,7 @@ if(UNIX)
     find_package(GLEW REQUIRED)
     set(LIBRARIES glfw ${GLEW_LIBRARIES} ${OPENGL_gl_LIBRARY})
 else(UNIX)
-    set(EXTERNAL "external")
+    set(EXTERNAL "${CMAKE_SOURCE_DIR}/external")
 
     set(GLFW_ROOT_DIR ${EXTERNAL})
     set(GLFW_USE_STATIC_LIBS ON)
@@ -57,7 +45,7 @@ else(UNIX)
     set(LIBRARIES ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OPENGL_LIBRARY})
 endif(UNIX)
 
-set(GLM_ROOT_DIR "external")
+set(GLM_ROOT_DIR "${CMAKE_SOURCE_DIR}/external")
 find_package(GLM REQUIRED)
 include_directories(${GLM_INCLUDE_DIRS})
 
@@ -82,8 +70,11 @@ list(SORT sources)
 source_group(Headers FILES ${headers})
 source_group(Sources FILES ${sources})
 
-cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers})
+add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers})
 target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBRARIES})
+set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES native)
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE "$<$<AND:$<CONFIG:Debug,RelWithDebInfo>,$<COMPILE_LANGUAGE:CUDA>>:-G>")
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${CMAKE_PROJECT_NAME})
 
 add_custom_command(
     TARGET ${CMAKE_PROJECT_NAME}
