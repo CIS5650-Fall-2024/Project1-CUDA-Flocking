@@ -7,6 +7,9 @@
 */
 
 #include "main.hpp"
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+#include "kernel.h"
 
 // ================
 // Configuration

@@ -11,7 +11,6 @@
 #pragma once
 
 #include <glm/glm.hpp>
-#include <cuda_runtime.h>
 
 struct cudaMat3 {
     glm::vec3 x;
