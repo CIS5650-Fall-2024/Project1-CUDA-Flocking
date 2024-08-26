@@ -245,6 +245,7 @@ You can toggle between different timestep update modes using the defines in
 `main.cpp`.
 
 ### 2.2 Play around some more
+
 Compare your uniform grid velocity update to your naive velocity update.
 In the typical case, the uniform grid version should be considerably faster.
 Try to push the limits of how many boids you can simulate.
@@ -252,6 +253,7 @@ Try to push the limits of how many boids you can simulate.
 Change the cell width of the uniform grid to be the neighborhood distance, instead of twice the neighborhood distance. Now, 27 neighboring cells will need to be checked for intersection. Does this increase or decrease the efficiency of the flocking?
 
 ### 2.3 Cutting out the middleman
+
 Consider the uniform grid neighbor search outlined in 2.1: pointers to boids in
 a single cell are contiguous in memory, but the boid data itself (velocities and
 positions) is scattered all over the place. Try rearranging the boid data
@@ -266,6 +268,7 @@ See the TODOs for Part 2.3. This should involve a slightly modified copy of
 your code from 2.1.
 
 ## Part 3: Performance Analysis
+
 For this project, we will guide you through your performance analysis with some
 basic questions. In the future, you will guide your own performance analysis -
 but these simple questions will always be critical to answer. In general, we
@@ -345,10 +348,10 @@ The template of the comment section of your pull request is attached below, you 
     * ...
 * Feedback on the project itself, if any.
 
-
 And you're done!
 
 ## Tips
+
 - If your simulation crashes before launch, use
 `checkCUDAErrorWithLine("message")` after CUDA invocations
 - `ctrl + f5` in Visual Studio will launch the program but won't let the window
@@ -364,8 +367,7 @@ also a [live preview plugin](https://atom.io/packages/markdown-preview) for the
 
 ## Optional Extra Credit
 
-Shared-Memory Optimization:
-Add fast nearest neighbor search using shared memory and the uniform grid. If you choose to tackle this problem, have it done before Project 5. Include additional graphs and performance analysis, showing clearly how much better the program performed using shared memory.
-
-Grid-Looping Optimization:
-Instead of hard-coding a search of the designated area, limit the search area based on the grid cells that have any aspect of them within the max_distance. This prevents the excessive positional comparisons with the corner points of each grid cell, while at the same time also allowing a more flexible approach (since we're just defining a min cell index and max cell index in all three cardinal directions). That is, there is no longer a manual check for a hard-coded specific number of surrounding cells depending on the implementation (such as the 8 surrounding cells, 27 surrounding cells, etc).
+* Shared-Memory Optimization:
+    * Add fast nearest neighbor search using shared memory and the uniform grid. If you choose to tackle this problem, have it done before Project 5. Include additional graphs and performance analysis, showing clearly how much better the program performed using shared memory.
+* Grid-Looping Optimization:
+    * Instead of hard-coding a search of the designated area, limit the search area based on the grid cells that have any aspect of them within the max_distance. This prevents the excessive positional comparisons with the corner points of each grid cell, while at the same time also allowing a more flexible approach (since we're just defining a min cell index and max cell index in all three cardinal directions). That is, there is no longer a manual check for a hard-coded specific number of surrounding cells depending on the implementation (such as the 8 surrounding cells, 27 surrounding cells, etc).
