@@ -1,5 +1,5 @@
-cis565_getting_started
-cis565_getting_started_generated_kernel*
+cis5650_boids
+cis5650_boids_generated_kernel*
 *.orig
 *.filters
 *.sln
@@ -367,7 +367,7 @@ publish/
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml
-# TODO: Comment the next line if you want to checkin your web deploy settings 
+# TODO: Comment the next line if you want to checkin your web deploy settings
 # but database connection strings (with potential passwords) will be unencrypted
 *.pubxml
 *.publishproj

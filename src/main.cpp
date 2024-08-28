@@ -1,6 +1,6 @@
 /**
 * @file      main.cpp
-* @brief     Example Boids flocking simulation for CIS 565
+* @brief     Example Boids flocking simulation for CIS 5650
 * @authors   Liam Boone, Kai Ninomiya, Kangning (Gary) Li
 * @date      2013-2017
 * @copyright University of Pennsylvania
@@ -28,7 +28,7 @@ const float DT = 0.2f;
 * C main function.
 */
 int main(int argc, char* argv[]) {
-  projectName = "565 CUDA Intro: Boids";
+  projectName = "5650 CUDA Intro: Boids";
 
   if (init(argc, argv)) {
     mainLoop();
