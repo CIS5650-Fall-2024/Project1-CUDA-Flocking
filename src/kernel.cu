@@ -226,14 +226,57 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 /**
 * LOOK-1.2 You can use this as a helper for kernUpdateVelocityBruteForce.
 * __device__ code can be called from a __global__ context
-* Compute the new velocity on the body with index `iSelf` due to the `N` boids
+* Compute the new velocity on the boid with index `iSelf` due to the `N` boids
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
-  // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-  // Rule 2: boids try to stay a distance d away from each other
-  // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+  glm::vec3     perceived_center(0.f, 0.f, 0.f);
+  glm::vec3                    c(0.f, 0.f, 0.f); 
+  glm::vec3   perceived_velocity(0.f, 0.f, 0.f); 
+  int r1_number_of_neighbours = 0; 
+  int r3_number_of_neighbours = 0;
+
+  const glm::vec3& boidpos = pos[iSelf]; 
+
+  for (int i = 0; i < N; i++) {
+    const glm::vec3& b = pos[i]; 
+    const glm::vec3& bvel = vel[i]; 
+
+    // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+    if (i != iSelf && glm::distance(b, boidpos) < rule1Distance) {
+      r1_number_of_neighbours++;
+      perceived_center += b; 
+    }
+
+    // Rule 2: boids try to stay a distance d away from each other
+    if (i != iSelf && glm::distance(b, boidpos) < rule2Distance) {
+      c -= (b - boidpos); 
+    }
+
+    // Rule 3: boids try to match the speed of surrounding boids
+    if (i != iSelf && glm::distance(b, boidpos) < rule3Distance) {
+      r3_number_of_neighbours++; 
+      perceived_velocity += bvel; 
+    }
+  }
+
+  glm::vec3 rule1(0.f); 
+  glm::vec3 rule2(0.f);
+  glm::vec3 rule3(0.f);
+
+  if (r1_number_of_neighbours > 0) {
+    perceived_center /= glm::vec3(r1_number_of_neighbours);
+    rule1 = (perceived_center - boidpos) * rule1Scale;
+  }
+  
+  rule2 = c * rule2Scale; 
+
+  if (r3_number_of_neighbours > 0) {
+    perceived_velocity /= glm::vec3(r3_number_of_neighbours);
+    rule3 = perceived_velocity * rule3Scale;
+  }
+ 
+  return vel[iSelf] + (rule1 + rule2 + rule3);
 }
 
 /**
@@ -242,9 +285,15 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 */
 __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   glm::vec3 *vel1, glm::vec3 *vel2) {
+  int idx = threadIdx.x + (blockIdx.x * blockDim.x);
   // Compute a new velocity based on pos and vel1
+  glm::vec3 newVel = computeVelocityChange(N, idx, pos, vel1); 
   // Clamp the speed
+  if (glm::length(newVel) > maxSpeed) {
+    newVel = glm::normalize(newVel) * maxSpeed;  // Normalize and scale to maxVelocity
+  }
   // Record the new velocity into vel2. Question: why NOT vel1?
+  vel2[idx] = newVel; 
 }
 
 /**
@@ -348,7 +397,11 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 */
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
+  int blocksPerGrid = (numObjects + threadsPerBlock.x - 1) / threadsPerBlock.x;
+  kernUpdateVelocityBruteForce<<<blocksPerGrid, threadsPerBlock>>>(numObjects, dev_pos, dev_vel1, dev_vel2);
+  kernUpdatePos<<<blocksPerGrid, threadsPerBlock>>>(numObjects, dt, dev_pos, dev_vel2); 
   // TODO-1.2 ping-pong the velocity buffers
+  cudaMemcpy(dev_vel1, dev_vel2, numObjects * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
@@ -394,6 +447,12 @@ void Boids::endSimulation() {
 
 void Boids::unitTest() {
   // LOOK-1.2 Feel free to write additional tests here.
+  std::cout << "MIKES TEST" << std::endl;
+  std::cout << "---------" << std::endl;
+
+
+  std::cout << "MIKES TEST END" << std::endl;
+  std::cout << "--------------" << std::endl;
 
   // test unstable sort
   int *dev_intKeys;
@@ -420,7 +479,7 @@ void Boids::unitTest() {
   cudaMalloc((void**)&dev_intValues, N * sizeof(int));
   checkCUDAErrorWithLine("cudaMalloc dev_intValues failed!");
 
-  dim3 fullBlocksPerGrid((N + blockSize - 1) / blockSize);
+  // dim3 fullBlocksPerGrid((N + blockSize - 1) / blockSize);
 
   std::cout << "before unstable sort: " << std::endl;
   for (int i = 0; i < N; i++) {
