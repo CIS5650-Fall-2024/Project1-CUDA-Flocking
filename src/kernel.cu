@@ -238,6 +238,7 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   glm::vec3 preceivedCenter (0.0f, 0.0f, 0.0f);
   glm::vec3 c (0.0f, 0.0f, 0.0f);
   glm::vec3 perceivedVelocity (0.0f, 0.0f, 0.0f);
+  glm::vec3 newVel(0.f);
   int rule1Neighb = 0;
   int rule3Neighb = 0;
 
@@ -246,28 +247,37 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   glm::vec3 currentVel = vel[iSelf];
 
   // loop through all boids
-  for(int i = 0; i < N; i++) {
+  for(int i = 0; i < N; ++i) {
     if(i != iSelf){
-      if (glm::distance(pos[i], currentPos) < rule1Distance) {
+      float dist = glm::distance(pos[i], currentPos);
+      if (dist < rule1Distance) {
         preceivedCenter += pos[i];
         rule1Neighb++;
       }
-      if (glm::distance(pos[i], currentPos) < rule2Distance) {
+      if (dist < rule2Distance) {
         c -= (pos[i] - currentPos);
       }
-      if (glm::distance(pos[i], currentPos) < rule3Distance) {
+      if (dist < rule3Distance) {
         perceivedVelocity += vel[i];
+        rule3Neighb++;
       }
 
     }
   }
 
   // prevent division by 0
-  if(rule1Neighb > 0) preceivedCenter /= rule1Neighb;
-  if(rule3Neighb > 0) perceivedVelocity /= rule3Neighb;
+  if (rule1Neighb > 0) {
+     preceivedCenter /= rule1Neighb;
+     newVel += (preceivedCenter - currentPos) * rule1Scale;
+  }
+  newVel += c * rule2Scale;
+  if (rule3Neighb > 0) {
+     perceivedVelocity /= rule3Neighb;
+     newVel += perceivedVelocity * rule3Scale;
+  } 
 
  // return the new velocity
-  return (preceivedCenter - currentPos) * rule1Scale + c * rule2Scale + perceivedVelocity * rule3Scale;
+  return newVel + currentVel;
 }
 
 /**
