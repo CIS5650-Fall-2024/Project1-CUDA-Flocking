@@ -138,8 +138,9 @@ __global__ void kernGenerateRandomPosArray(int time, int N, glm::vec3 * arr, flo
 */
 void Boids::initSimulation(int N) {
   numObjects = N;
+  std::cout << N << std::endl;
   dim3 fullBlocksPerGrid((N + blockSize - 1) / blockSize);
-
+  std::cout << "Block Size " << fullBlocksPerGrid.x << " " << fullBlocksPerGrid.y << std::endl;
   // LOOK-1.2 - This is basic CUDA memory management and error checking.
   // Don't forget to cudaFree in  Boids::endSimulation.
   cudaMalloc((void**)&dev_pos, N * sizeof(glm::vec3));
@@ -230,10 +231,39 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
+    glm::vec3 res(0.0f);
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-  // Rule 2: boids try to stay a distance d away from each other
-  // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+    
+    
+    glm::vec3 perceived_center(0);
+    glm::vec3 c(0);
+    glm::vec3 perceived_velocity(0);
+    int numOfNeighbors1 = 0;
+    int numOfNeighbors2 = 0;
+    for (int i = 0; i < N; i++) {
+        float distance = glm::distance(pos[i], pos[iSelf]);
+        if (i != iSelf && distance < rule1Distance) {
+            perceived_center += pos[i];
+            numOfNeighbors1++;
+        }
+        if (i != iSelf && distance < rule2Distance) {
+            c -= (pos[i] - pos[iSelf]);
+        }
+        if (i != iSelf && distance < rule3Distance) {
+            perceived_velocity += vel[i];
+            numOfNeighbors2++;
+        }
+    }
+    if (numOfNeighbors1 > 0) { 
+        perceived_center /= numOfNeighbors1;
+        res += (perceived_center - pos[iSelf]) * rule1Scale;
+    }
+    if (numOfNeighbors2 > 0) { 
+        perceived_velocity /= numOfNeighbors2; 
+        res += perceived_velocity * rule3Scale;
+    }
+    res = c * rule2Scale;
+    return res;
 }
 
 /**
@@ -245,6 +275,13 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    if (index < N) {
+        vel2[index] = computeVelocityChange(N, index, pos, vel1) + vel1[index];
+        if (glm::length(vel2[index]) > maxSpeed) {
+            vel2[index] = vel2[index] / glm::length(vel2[index]) * maxSpeed;
+        }
+    }
 }
 
 /**
@@ -349,6 +386,12 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+    dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+    kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_pos, dev_vel1, dev_vel2);
+    checkCUDAErrorWithLine("kernUpdateVelocityBruteForce Failed");
+    kernUpdatePos <<<fullBlocksPerGrid, blockSize >>> (numObjects, dt, dev_pos, dev_vel2);
+    checkCUDAErrorWithLine("kernUpdatePos Failed");
+    std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
@@ -427,7 +470,6 @@ void Boids::unitTest() {
     std::cout << "  key: " << intKeys[i];
     std::cout << " value: " << intValues[i] << std::endl;
   }
-
   // How to copy data to the GPU
   cudaMemcpy(dev_intKeys, intKeys.get(), sizeof(int) * N, cudaMemcpyHostToDevice);
   cudaMemcpy(dev_intValues, intValues.get(), sizeof(int) * N, cudaMemcpyHostToDevice);
