@@ -262,7 +262,7 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
         perceived_velocity /= numOfNeighbors2; 
         res += perceived_velocity * rule3Scale;
     }
-    res = c * rule2Scale;
+    res += c * rule2Scale;
     return res;
 }
 
@@ -277,9 +277,12 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Record the new velocity into vel2. Question: why NOT vel1?
     int index = threadIdx.x + (blockIdx.x * blockDim.x);
     if (index < N) {
-        vel2[index] = computeVelocityChange(N, index, pos, vel1) + vel1[index];
-        if (glm::length(vel2[index]) > maxSpeed) {
-            vel2[index] = vel2[index] / glm::length(vel2[index]) * maxSpeed;
+        glm::vec3 velocity = computeVelocityChange(N, index, pos, vel1) + vel1[index];
+        float len = glm::length(velocity);
+        if (len > maxSpeed) {
+            vel2[index] = velocity / len * maxSpeed;
+        }else{
+            vel2[index] = velocity;
         }
     }
 }
