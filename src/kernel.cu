@@ -257,6 +257,8 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
 
   // this code is heavily inspired by the provided 2D example
   int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index >= N) return;
+
   glm::vec3 currPos = pos[index];
 
   int neighborCountCenter = 0;
@@ -287,7 +289,7 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
     }
   }
 
-  glm::vec3 deltaVel = glm::vec3(0.f);
+  glm::vec3 deltaVel = vel1[index];
   if (neighborCountCenter) {
     centerPos = centerPos / (float)neighborCountCenter;
     deltaVel += (centerPos - currPos) * rule1Scale;
@@ -298,7 +300,10 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   }
   deltaVel += separatePos * rule2Scale;
 
-  vel2[index] += deltaVel;
+  float speed = sqrtf(dot(deltaVel, deltaVel));
+  if (speed > maxSpeed) deltaVel = (deltaVel / speed) * maxSpeed;
+
+  vel2[index] = deltaVel;
 }
 
 /**
@@ -403,14 +408,14 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+  dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
   kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, blockSize>>>(numObjects,
     dev_pos, dev_vel1, dev_vel2);
   checkCUDAErrorWithLine("kernUpdateVelocityBruteForce failed!");
 
-  for (int i = 0; i < numObjects; i++) {
-    dev_pos[i] += dev_vel2[i] * dt;
-    dev_vel1[i] = dev_vel2[i];
-  }
+  kernUpdatePos<<<fullBlocksPerGrid, blockSize>>> (numObjects,
+      dt, dev_pos, dev_vel2);
+  std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
