@@ -91,6 +91,7 @@ bool init(int argc, char **argv) {
     glfwTerminate();
     return false;
   }
+
   glfwMakeContextCurrent(window);
   glfwSetKeyCallback(window, keyCallback);
   glfwSetCursorPosCallback(window, mousePositionCallback);
