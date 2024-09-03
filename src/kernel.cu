@@ -236,6 +236,15 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   return glm::vec3(0.0f, 0.0f, 0.0f);
 }
 
+// return the Euclidean distance between two 3D points
+__device__ float computeDistance(glm::vec3 pos1, glm::vec3 pos2) {
+  float dX = pos2.x - pos1.x;
+  float dY = pos2.y - pos1.y;
+  float dZ = pos2.z - pos1.z;
+
+  return sqrtf(dX * dX + dY * dY + dZ * dZ);
+}
+
 /**
 * TODO-1.2 implement basic flocking
 * For each of the `N` bodies, update its position based on its current velocity.
@@ -245,6 +254,51 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+
+  // this code is heavily inspired by the provided 2D example
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  glm::vec3 currPos = pos[index];
+
+  int neighborCountCenter = 0;
+  glm::vec3 centerPos = glm::vec3(0.f);
+  
+  glm::vec3 separatePos = glm::vec3(0.f);
+
+  int neighborCountCohesion = 0;
+  glm::vec3 cohesionVel = glm::vec3(0.f);
+
+  for (int j = 0; j < N; j++) {
+    if (j == index) continue;
+
+    float distance = computeDistance(pos[j], currPos);
+    // Rule 1: Cohesion: boids fly towards the center of mass of neighboring boids
+    if (distance < rule1Distance) {
+      neighborCountCenter++;
+      centerPos += pos[j];
+    }
+
+    // Rule 2: Separation: boids try to keep a small distance away from each other
+    if (distance < rule2Distance) separatePos -= pos[j] - currPos;
+
+    // Rule 3: Alignment: boids try to match the velocities of neighboring boids
+    if (distance < rule3Distance) {
+      neighborCountCohesion++;
+      cohesionVel += vel1[j];
+    }
+  }
+
+  glm::vec3 deltaVel = glm::vec3(0.f);
+  if (neighborCountCenter) {
+    centerPos = centerPos / (float)neighborCountCenter;
+    deltaVel += (centerPos - currPos) * rule1Scale;
+  }
+  if (neighborCountCohesion) {
+    cohesionVel = cohesionVel / (float)neighborCountCohesion;
+    deltaVel += cohesionVel * rule3Scale;
+  }
+  deltaVel += separatePos * rule2Scale;
+
+  vel2[index] += deltaVel;
 }
 
 /**
@@ -349,6 +403,14 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+  kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, blockSize>>>(numObjects,
+    dev_pos, dev_vel1, dev_vel2);
+  checkCUDAErrorWithLine("kernUpdateVelocityBruteForce failed!");
+
+  for (int i = 0; i < numObjects; i++) {
+    dev_pos[i] += dev_vel2[i] * dt;
+    dev_vel1[i] = dev_vel2[i];
+  }
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
