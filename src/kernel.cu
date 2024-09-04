@@ -51,6 +51,8 @@ void checkCUDAError(const char *msg, int line = -1) {
 
 #define maxSpeed 1.0f
 
+#define FULL_NEIGHBOR_CHECK 0
+
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
 
@@ -407,8 +409,12 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   const auto index = threadIdx.x + (blockIdx.x * blockDim.x);
   if (index >= N) return;
 
-  const auto grid_loc_3d = glm::ivec3{(pos[index] - gridMin) * inverseCellWidth};
-  // const glm::ivec3 grid_loc_3d = glm::round((pos[index] - gridMin) * inverseCellWidth);
+
+#if FULL_NEIGHBOR_CHECK
+  const glm::ivec3 grid_loc_3d{(pos[index] - gridMin) * inverseCellWidth};
+#else
+  const glm::ivec3 grid_loc_3d{glm::round((pos[index] - gridMin) * inverseCellWidth)};
+#endif
 
   int rule_1_neighbors = 0;
   glm::vec3 perceived_center; // rule 1
@@ -419,9 +425,15 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   glm::vec3 perceived_velocity; // rule 3
 
   // TODO(rahul): change this to only check 8 cells (need to find the correct corner and do 2*2*2 cell checks.
+#if FULL_NEIGHBOR_CHECK
   for (auto x = -1; x <= 1; x++) {
     for (auto y = -1; y <= 1; y++) {
         for (auto z = -1; z <= 1; z++) {
+#else
+  for (auto x = -1; x <= 0; x++) {
+    for (auto y = -1; y <= 0; y++) {
+        for (auto z = -1; z <= 0; z++) {
+#endif
             const auto neighbor_grid_loc_3d = grid_loc_3d + glm::ivec3{x, y, z};
             if (
                 glm::any(glm::lessThan(neighbor_grid_loc_3d, glm::ivec3{0}))
