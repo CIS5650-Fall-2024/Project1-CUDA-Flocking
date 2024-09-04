@@ -407,8 +407,6 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   const auto index = threadIdx.x + (blockIdx.x * blockDim.x);
   if (index >= N) return;
 
-  // const auto index = particleArrayIndices[test];
-
   const auto grid_loc_3d = glm::ivec3{(pos[index] - gridMin) * inverseCellWidth};
   // const glm::ivec3 grid_loc_3d = glm::round((pos[index] - gridMin) * inverseCellWidth);
 
@@ -467,12 +465,9 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     }
   }
 
-  if (rule_1_neighbors > 0) perceived_center /= rule_1_neighbors;
-  if (rule_3_neighbors > 0) perceived_velocity /= rule_3_neighbors;
-
-  const auto new_velocity = vel1[index] + (perceived_center - pos[index]) * rule1Scale
-                                        + repulsion * rule2Scale
-                                        + perceived_velocity * rule3Scale;
+  auto new_velocity = vel1[index] + repulsion * rule2Scale;
+  if (rule_1_neighbors > 0) new_velocity += (perceived_center / (float)rule_1_neighbors - pos[index]) * rule1Scale;
+  if (rule_3_neighbors > 0) new_velocity += perceived_velocity / (float)rule_3_neighbors * rule3Scale;
 
   vel2[index] = glm::clamp(new_velocity, -maxSpeed, maxSpeed);
 }
@@ -557,7 +552,7 @@ void Boids::stepSimulationScatteredGrid(float dt) {
     dev_pos, dev_vel1, dev_vel2
   );
 
-  kernUpdatePos<<<full_blocks_per_grid, blockSize>>>(numObjects, dt, dev_pos, dev_vel1);
+  kernUpdatePos<<<full_blocks_per_grid, blockSize>>>(numObjects, dt, dev_pos, dev_vel2);
 
   auto *const tmp = dev_vel1;
   dev_vel1 = dev_vel2;
