@@ -169,6 +169,12 @@ void Boids::initSimulation(int N) {
   gridMinimum.z -= halfGridWidth;
 
   // TODO-2.1 TODO-2.3 - Allocate additional buffers here.
+  cudaMalloc((void**)&dev_particleArrayIndices, N * sizeof(glm::mat3));
+  checkCUDAErrorWithLine("cudaMalloc dev_particleArrayIndices failed!");
+
+  cudaMalloc((void**)&dev_particleGridIndices, N * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_particleGridIndices failed!");
+
   cudaDeviceSynchronize();
 }
 
@@ -336,6 +342,15 @@ __global__ void kernComputeIndices(int N, int gridResolution,
     // - Label each boid with the index of its grid cell.
     // - Set up a parallel array of integer indices as pointers to the actual
     //   boid data in pos and vel1/vel2
+    for (int i = 0; i < N; i++) {
+        glm::vec3 boid_pos = pos[i];
+        //glm::vec3 boid_vel1 = dev_vel1[i];
+        //glm::vec3 boid_vel2 = dev_vel2[i];
+        glm::vec3 boid_in_grid = boid_pos * (gridResolution / scene_scale);
+        gridIndices[i] = gridIndex3Dto1D(boid_in_grid.x, boid_in_grid.y, boid_in_grid.z, gridResolution);
+        indices[i] = i;
+    }
+
 }
 
 // LOOK-2.1 Consider how this could be useful for indicating that a cell
