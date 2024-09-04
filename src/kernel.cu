@@ -233,9 +233,9 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
     int neighbors1 = 0;
     int neighbors3 = 0;
-    glm::vec3 perceivedCenter(0.0f, 0.0f, 0.0f);
+    glm::vec3 perceivedCenter;
     glm::vec3 c(0.0f, 0.0f, 0.0f);
-    glm::vec3 perceivedVelocity(0.0f, 0.0f, 0.0f);
+    glm::vec3 perceivedVelocity;
 
     glm::vec3 selfPos = pos[iSelf];
     glm::vec3 selfVel = vel[iSelf];
@@ -264,17 +264,18 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
         
     }
     if (neighbors1 > 0) {
-       perceivedCenter /= neighbors1;
+        perceivedCenter /= neighbors1;
+        perceivedCenter = (perceivedCenter - selfPos) * rule1Scale;
     }
     if (neighbors3 > 0) {
-       perceivedVelocity /= neighbors3;
+        perceivedVelocity /= neighbors3;
+        perceivedVelocity = perceivedVelocity * rule3Scale;
     }
     
-    glm::vec3 v1 = (perceivedCenter - selfPos) * rule1Scale;
-    glm::vec3 v2 = c * rule2Scale;
-    glm::vec3 v3 = perceivedVelocity * rule3Scale;
+    c *= rule2Scale;
+    
   
-  return selfVel + v1 + v2 + v3;
+    return selfVel + perceivedCenter + c + perceivedVelocity;
 }
 
 /**
@@ -408,7 +409,7 @@ void Boids::stepSimulationNaive(float dt) {
 
     dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
 
-    kernUpdateVelocityBruteForce << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_pos, dev_vel1, dev_vel2);
+    kernUpdateVelocityBruteForce <<<fullBlocksPerGrid, blockSize >> > (numObjects, dev_pos, dev_vel1, dev_vel2);
 
     kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt,dev_pos ,dev_vel2);
 
@@ -466,7 +467,7 @@ void Boids::unitTest() {
   // test unstable sort
   int *dev_intKeys;
   int *dev_intValues;
-  int N = 10;
+  int N =10;
 
   std::unique_ptr<int[]>intKeys{ new int[N] };
   std::unique_ptr<int[]>intValues{ new int[N] };
