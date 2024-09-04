@@ -31,6 +31,23 @@ void checkCUDAError(const char *msg, int line = -1) {
   }
 }
 
+/**
+ * Utility functions
+*/
+template<typename T>
+void static inline swap(T* &a, T* &b) {
+  auto *const temp = a;
+  a = b;
+  b = temp;
+}
+
+template<typename T>
+__global__ void gather(const int* map, int N, const T* values, T* output) {
+  const auto index = threadIdx.x + (blockIdx.x * blockDim.x);
+  if (index >= N) return;
+
+  output[index] = values[map[index]];
+}
 
 /*****************
 * Configuration *
@@ -89,9 +106,6 @@ int *dev_gridCellEndIndices;   // to this cell?
 // the position and velocity data to be coherent within cells.
 glm::vec3 *dev_pos_rearranged;
 glm::vec3 *dev_vel1_rearranged;
-
-thrust::device_ptr<glm::vec3> dev_thrust_pos_rearranged;
-thrust::device_ptr<glm::vec3> dev_thrust_vel1_rearranged;
 
 // LOOK-2.1 - Grid parameters based on simulation parameters.
 // These are automatically computed for you in Boids::initSimulation
@@ -196,9 +210,6 @@ void Boids::initSimulation(int N) {
   cudaMalloc((void**)&dev_vel1_rearranged, N * sizeof(glm::vec3));
   checkCUDAErrorWithLine("cudaMalloc dev_vel1_rearranged failed!");
 
-  dev_thrust_pos_rearranged = thrust::device_pointer_cast(dev_pos_rearranged);
-  dev_thrust_vel1_rearranged = thrust::device_pointer_cast(dev_vel1_rearranged);
-
   cudaDeviceSynchronize();
 }
 
@@ -248,6 +259,20 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
   cudaDeviceSynchronize();
 }
 
+__device__ static inline glm::vec3 compute_new_vel(
+  const glm::vec3 &pos, const glm::vec3 &vel,
+  const glm::vec3 &perceived_center, int rule_1_neighbors,
+  const glm::vec3 &repulsion,
+  const glm::vec3 &perceived_velocity, int rule_3_neighbors
+) {
+
+  auto new_velocity = vel + repulsion * rule2Scale;
+  if (rule_1_neighbors > 0) new_velocity += (perceived_center / (float)rule_1_neighbors - pos) * rule1Scale;
+  if (rule_3_neighbors > 0) new_velocity += perceived_velocity / (float)rule_3_neighbors * rule3Scale;
+
+  return glm::clamp(new_velocity, -maxSpeed, maxSpeed);
+}
+
 
 /******************
 * stepSimulation *
@@ -269,7 +294,7 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 
   glm::vec3 repulsion; // rule 2
 
-  int rule_2_neighbors = 0;
+  int rule_3_neighbors = 0;
   glm::vec3 perceived_velocity; // rule 3
 
   for (auto i = 0; i < N; i++) {
@@ -292,16 +317,16 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     // Rule 3
     if (squared_distance < rule3Distance * rule3Distance) {
       perceived_velocity += vel[i];
-      rule_2_neighbors++;
+      rule_3_neighbors++;
     }
   }
 
-  if (rule_1_neighbors > 0) perceived_center /= rule_1_neighbors;
-  if (rule_2_neighbors > 0) perceived_velocity /= rule_2_neighbors;
-
-  return (perceived_center - pos[iSelf]) * rule1Scale
-        + repulsion * rule2Scale
-        + perceived_velocity * rule3Scale;
+  return compute_new_vel(
+    pos[iSelf], vel[iSelf],
+    perceived_center, rule_1_neighbors,
+    repulsion,
+    perceived_velocity, rule_3_neighbors
+  );
 
 }
 
@@ -314,8 +339,7 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   const auto index = threadIdx.x + (blockIdx.x * blockDim.x);
   if (index >= N) return;
 
-  const auto new_velocity = vel1[index] + computeVelocityChange(N, index, pos, vel1);
-  vel2[index] = glm::clamp(new_velocity, -maxSpeed, maxSpeed);
+  vel2[index] = computeVelocityChange(N, index, pos, vel1);
 }
 
 /**
@@ -438,7 +462,6 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int rule_3_neighbors = 0;
   glm::vec3 perceived_velocity; // rule 3
 
-  // TODO(rahul): change this to only check 8 cells (need to find the correct corner and do 2*2*2 cell checks.
 #if FULL_NEIGHBOR_CHECK
   for (auto x = -1; x <= 1; x++) {
     for (auto y = -1; y <= 1; y++) {
@@ -491,11 +514,12 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     }
   }
 
-  auto new_velocity = vel1[index] + repulsion * rule2Scale;
-  if (rule_1_neighbors > 0) new_velocity += (perceived_center / (float)rule_1_neighbors - pos[index]) * rule1Scale;
-  if (rule_3_neighbors > 0) new_velocity += perceived_velocity / (float)rule_3_neighbors * rule3Scale;
-
-  vel2[index] = glm::clamp(new_velocity, -maxSpeed, maxSpeed);
+  vel2[index] = compute_new_vel(
+    pos[index], vel1[index],
+    perceived_center, rule_1_neighbors,
+    repulsion,
+    perceived_velocity, rule_3_neighbors
+  );
 }
 
 __global__ void kernUpdateVelNeighborSearchCoherent(
@@ -534,7 +558,6 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   int rule_3_neighbors = 0;
   glm::vec3 perceived_velocity; // rule 3
 
-  // TODO(rahul): change this to only check 8 cells (need to find the correct corner and do 2*2*2 cell checks.
 #if FULL_NEIGHBOR_CHECK
   for (auto x = -1; x <= 1; x++) {
     for (auto y = -1; y <= 1; y++) {
@@ -586,11 +609,12 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     }
   }
 
-  auto new_velocity = vel1[index] + repulsion * rule2Scale;
-  if (rule_1_neighbors > 0) new_velocity += (perceived_center / (float)rule_1_neighbors - pos[index]) * rule1Scale;
-  if (rule_3_neighbors > 0) new_velocity += perceived_velocity / (float)rule_3_neighbors * rule3Scale;
-
-  vel2[index] = glm::clamp(new_velocity, -maxSpeed, maxSpeed);
+  vel2[index] = compute_new_vel(
+    pos[index], vel1[index],
+    perceived_center, rule_1_neighbors,
+    repulsion,
+    perceived_velocity, rule_3_neighbors
+  );
 }
 
 /**
@@ -600,10 +624,7 @@ void Boids::stepSimulationNaive(float dt) {
   dim3 full_blocks_per_grid{(numObjects + blockSize - 1) / blockSize};
   kernUpdateVelocityBruteForce<<<full_blocks_per_grid, blockSize>>>(numObjects, dev_pos, dev_vel1, dev_vel2);
   kernUpdatePos<<<full_blocks_per_grid, blockSize>>>(numObjects, dt, dev_pos, dev_vel1);
-
-  auto *const tmp = dev_vel1;
-  dev_vel1 = dev_vel2;
-  dev_vel2 = tmp;
+  swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
@@ -656,24 +677,7 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 
   kernUpdatePos<<<full_blocks_per_grid, blockSize>>>(numObjects, dt, dev_pos, dev_vel2);
 
-  auto *const tmp = dev_vel1;
-  dev_vel1 = dev_vel2;
-  dev_vel2 = tmp;
-}
-
-template<typename T>
-void static inline swap(T* &a, T* &b) {
-  auto *const temp = a;
-  a = b;
-  b = temp;
-}
-
-template<typename T>
-__global__ void gather(const int* map, int N, const T* values, T* output) {
-  const auto index = threadIdx.x + (blockIdx.x * blockDim.x);
-  if (index >= N) return;
-
-  output[index] = values[map[index]];
+  swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
@@ -720,8 +724,6 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 
   gather<<<full_blocks_per_grid, blockSize>>>(dev_particleArrayIndices, numObjects, dev_pos, dev_pos_rearranged);
   gather<<<full_blocks_per_grid, blockSize>>>(dev_particleArrayIndices, numObjects, dev_vel1, dev_vel1_rearranged);
-  // thrust::gather(dev_thrust_particleArrayIndices, dev_thrust_particleArrayIndices + numObjects, dev_pos, dev_pos_rearranged);
-  // thrust::gather(dev_thrust_particleArrayIndices, dev_thrust_particleArrayIndices + numObjects, dev_vel1, dev_vel1_rearranged);
 
   kernUpdateVelNeighborSearchCoherent<<<full_blocks_per_grid, blockSize>>>(
     numObjects,
