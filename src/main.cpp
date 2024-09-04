@@ -17,11 +17,20 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
+
+#define CUDA_PROFILING 1
+
+#if CUDA_PROFILING
+cudaEvent_t start;
+cudaEvent_t stop;
+float elapsed_time = 0.0f;
+int elapsed_frame = 0;
+#endif
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS = 500000;
 const float DT = 0.2f;
 
 /**
@@ -120,6 +129,11 @@ bool init(int argc, char **argv) {
 
   glEnable(GL_DEPTH_TEST);
 
+#if CUDA_PROFILING
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+#endif
+
   return true;
 }
 
@@ -198,6 +212,10 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertPositions, boidVBO_positions);
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
+#if CUDA_PROFILING
+    cudaEventRecord(start);
+#endif
+
     // execute the kernel
     #if UNIFORM_GRID && COHERENT_GRID
     Boids::stepSimulationCoherentGrid(DT);
@@ -207,9 +225,20 @@ void initShaders(GLuint * program) {
     Boids::stepSimulationNaive(DT);
     #endif
 
+#if CUDA_PROFILING
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    //std::cout << milliseconds << std::endl;
+    elapsed_frame++;
+    elapsed_time += milliseconds;
+#endif
+
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
     #endif
+
     // unmap buffer object
     cudaGLUnmapBufferObject(boidVBO_positions);
     cudaGLUnmapBufferObject(boidVBO_velocities);
@@ -259,6 +288,12 @@ void initShaders(GLuint * program) {
       glfwSwapBuffers(window);
       #endif
     }
+#if CUDA_PROFILING
+    float average_frame_time = std::max(elapsed_time / elapsed_frame, FLT_EPSILON);
+    std::cout << "[Stat] average_frame_time: " << average_frame_time << " ms   average FPS: " << 1000. / average_frame_time << "\n";
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+#endif
     glfwDestroyWindow(window);
     glfwTerminate();
   }
