@@ -233,7 +233,42 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
   // Rule 2: boids try to stay a distance d away from each other
   // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+
+    glm::vec3 res = vel[iSelf];
+    glm::vec3 iPos = pos[iSelf];
+    glm::vec3 rule1Sum = glm::vec3(0.0f);
+    glm::vec3 rule2Sum = glm::vec3(0.0f);
+    glm::vec3 rule3Sum = glm::vec3(0.0f);
+    int numOfNeighor = 0;
+
+    for (int i = 0; i < N; i++) {
+        if (i == iSelf) continue;
+
+        float distance = glm::distance(iPos, pos[i]);
+        if (distance < rule1Distance) {
+            rule1Sum += pos[i];
+            numOfNeighor++;
+
+            if (distance < rule2Distance) {
+                rule2Sum -= (pos[i] - iPos);
+            }
+            if (distance < rule3Distance) {
+                rule3Sum += vel[i];
+            }
+        }
+    }
+
+    if (numOfNeighor > 0) {
+        rule1Sum /= numOfNeighor;
+        res += (rule1Sum - iPos) * rule1Scale;
+
+        rule3Sum /= numOfNeighor;
+        res += rule3Sum * rule3Scale;
+    }
+
+    res += rule2Sum * rule2Scale;
+
+    return res;
 }
 
 /**
@@ -245,6 +280,18 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    if (index >= N) {
+        return;
+    }
+    glm::vec3 newVel = computeVelocityChange(N, index, pos, vel1);
+
+    float len = glm::length(newVel);
+    if (len > maxSpeed) {
+        newVel = (newVel / len) * maxSpeed;
+    }
+
+    vel2[index] = newVel;
 }
 
 /**
@@ -349,6 +396,12 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+    dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+    kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, blockSize >>>(numObjects, dev_pos, dev_vel1, dev_vel2);
+    kernUpdatePos<<<fullBlocksPerGrid, blockSize>>>(numObjects, dt, dev_pos, dev_vel2);
+    glm::vec3* vel_temp = dev_vel1;
+    dev_vel1 = dev_vel2;
+    dev_vel2 = vel_temp;
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
