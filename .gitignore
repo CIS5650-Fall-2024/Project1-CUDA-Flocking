@@ -562,3 +562,5 @@ xcuserdata
 *.xccheckout
 *.moved-aside
 *.xcuserstate
+
+.vscode
