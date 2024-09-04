@@ -1,4 +1,5 @@
 #define GLM_FORCE_CUDA
+#include <device_launch_parameters.h>
 #include <stdio.h>
 #include <cuda.h>
 #include <cmath>
@@ -223,6 +224,49 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 * stepSimulation *
 ******************/
 
+// Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+__device__ glm::vec3 computeCenterOfMassVelChange(int N, int iSelf, const glm::vec3* pos) {
+    glm::vec3 perceived_center(0, 0, 0);
+
+    for (int i = 0; i < N; ++i) {
+        if (i == iSelf) continue;
+
+        const glm::vec3& pos_i = *(pos + i);
+        perceived_center += pos_i;
+    }
+    
+    perceived_center /= (N - 1);
+    return (perceived_center - pos[iSelf]) * rule1Scale;
+}
+
+// Rule 2: boids try to stay a distance d away from each other
+__device__ glm::vec3 computeMaintainDistanceVelChange(int N, int iSelf, const glm::vec3* pos) {
+    glm::vec3 adjustment_velocity(0, 0, 0);
+
+    for (int i = 0; i < N; ++i) {
+        if (i == iSelf) continue;
+
+        const glm::vec3 pos_i = *(pos + i);
+        adjustment_velocity -= (pos_i - pos[iSelf]);
+    }
+
+    return adjustment_velocity * rule2Scale;
+}
+
+// Rule 3: boids try to match the speed of surrounding boids
+__device__ glm::vec3 computeVelocityMatchVelChange(int N, int iSelf, const glm::vec3* vel) {
+    glm::vec3 perceived_velocity(0, 0, 0);
+    for (int i = 0; i < N; ++i) {
+        if (i == iSelf) continue;
+
+        const glm::vec3 vel_i = *(vel + i);
+        perceived_velocity += vel_i;
+    }
+
+    perceived_velocity /= (N - 1);
+    return perceived_velocity * rule3Scale;
+}
+
 /**
 * LOOK-1.2 You can use this as a helper for kernUpdateVelocityBruteForce.
 * __device__ code can be called from a __global__ context
@@ -230,10 +274,11 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
-  // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-  // Rule 2: boids try to stay a distance d away from each other
-  // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+  glm::vec3 deltaV1 = computeCenterOfMassVelChange(N, iSelf, pos);
+  glm::vec3 deltaV2 = computeMaintainDistanceVelChange(N, iSelf, pos);
+  glm::vec3 deltaV3 = computeVelocityMatchVelChange(N, iSelf, vel);
+  
+  return deltaV1 + deltaV2 + deltaV3;
 }
 
 /**
@@ -242,9 +287,11 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 */
 __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   glm::vec3 *vel1, glm::vec3 *vel2) {
-  // Compute a new velocity based on pos and vel1
-  // Clamp the speed
-  // Record the new velocity into vel2. Question: why NOT vel1?
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    
+    glm::vec3 deltaV = computeVelocityChange(N, index, pos, vel1);
+    // We record the new velocity into vel2 because we don't want to affect threads running in parallel that need the pre-update velocity of each boid.
+    vel2[index] = vel1[index] + deltaV;
 }
 
 /**
