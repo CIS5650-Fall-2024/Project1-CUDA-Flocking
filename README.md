@@ -5,6 +5,7 @@ Project 1 - Flocking**
   * [LinkedIn](https://www.linkedin.com/in/rahul-aggarwal-32133a1b3/)
 * Tested on: Ubuntu 20.04, i7-12700H @ 2.3GHz, RTX 3050 Ti Laptop 4GB (Personal)
 
+![teaser](images/boids_teaser.png)
 ![teaser](https://github.com/user-attachments/assets/e1fb2e53-1f2e-4cf3-b5ea-14c25519367f)
 
 ### Performance Analysis

@@ -54,13 +54,13 @@ __global__ void gather(const int* map, int N, const T* values, T* output) {
 *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 1
+#define blockSize 128
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
 #define rule1Distance 5.0f
 #define rule2Distance 3.0f
-#define rule3Distance 5.0f
+#define rule3Distance 9.0f
 
 #define rule1Scale 0.01f
 #define rule2Scale 0.1f
