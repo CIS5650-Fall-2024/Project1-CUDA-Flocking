@@ -170,6 +170,19 @@ void Boids::initSimulation(int N) {
   gridMinimum.z -= halfGridWidth;
 
   // TODO-2.1 TODO-2.3 - Allocate additional buffers here.
+
+  cudaMalloc((void**)&dev_particleArrayIndices, N * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_particleArrayIndices failed!");
+
+  cudaMalloc((void**)&dev_particleGridIndices, N * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_particleGridIndices failed!");
+
+  cudaMalloc((void**)&dev_gridCellStartIndices, gridCellCount * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_gridCellStartIndices failed!");
+
+  cudaMalloc((void**)&dev_gridCellEndIndices, gridCellCount * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_gridCellEndIndices failed!");
+
   cudaDeviceSynchronize();
 }
 
@@ -346,6 +359,17 @@ __global__ void kernComputeIndices(int N, int gridResolution,
     // - Label each boid with the index of its grid cell.
     // - Set up a parallel array of integer indices as pointers to the actual
     //   boid data in pos and vel1/vel2
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index < N){
+        glm::vec3 thisPos = pos[index];
+        glm::ivec3 gridPos = glm::floor((thisPos - gridMin) * inverseCellWidth);
+
+        int gridIndex = gridIndex3Dto1D(gridPos.x, gridPos.y, gridPos.z, gridResolution);
+
+        indices[index] = index;
+        gridIndices[index] = gridIndex;
+    }
+
 }
 
 // LOOK-2.1 Consider how this could be useful for indicating that a cell
@@ -363,6 +387,23 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
   // Identify the start point of each cell in the gridIndices array.
   // This is basically a parallel unrolling of a loop that goes
   // "this index doesn't match the one before it, must be a new cell!"
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index < N) {
+        int currentIndex = particleGridIndices[index];
+            if (index == 0) {
+                gridCellStartIndices[currentIndex] = 0;
+            }
+            else {
+                if (currentIndex != particleGridIndices[index - 1]) {
+                    gridCellStartIndices[currentIndex] = index;
+                    gridCellEndIndices[particleGridIndices[index - 1]] = index - 1;
+                }
+            }
+
+            if (index == N - 1) {
+                gridCellEndIndices[currentIndex] = index;
+            }
+    }
 }
 
 __global__ void kernUpdateVelNeighborSearchScattered(
