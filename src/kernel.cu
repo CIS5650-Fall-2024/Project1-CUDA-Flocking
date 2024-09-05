@@ -315,6 +315,10 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Record the new velocity into vel2. Question: why NOT vel1?
 
   int iSelf = blockIdx.x*blockDim.x + threadIdx.x;
+  if (iSelf >= N) {
+    // This is one of the extra threads in the last block.
+    return;
+  }
 
   glm::vec3 newVel = vel1[iSelf] + computeVelocityChange(N, iSelf, pos, vel1);
 
@@ -486,8 +490,11 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 
 void Boids::endSimulation() {
   cudaFree(dev_vel1);
+  checkCUDAErrorWithLine("cudaFree dev_vel1 failed!");
   cudaFree(dev_vel2);
+  checkCUDAErrorWithLine("cudaFree dev_vel2 failed!");
   cudaFree(dev_pos);
+  checkCUDAErrorWithLine("cudaFree dev_pos failed!");
 
   // TODO-2.1 TODO-2.3 - Free any additional buffers here.
 }
