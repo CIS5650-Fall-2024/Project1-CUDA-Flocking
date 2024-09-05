@@ -55,6 +55,10 @@ void checkCUDAError(const char *msg, int line = -1) {
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
 
+/*! Defines how big a cell is compared to the maximum rule distance */
+#define cellWidthToSearchDistanceRatio 2.0f
+#define inverseCellWidthToSearchDistanceRatio (1.0f / cellWidthToSearchDistanceRatio)
+
 /***********************************************
 * Kernel state (pointers are device pointers) *
 ***********************************************/
@@ -158,7 +162,7 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
-  gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  gridCellWidth = cellWidthToSearchDistanceRatio * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -430,6 +434,13 @@ __device__ glm::vec3 wrapIndices(const glm::vec3& index, int size) {
     );
 }
 
+__device__ bool isBoidWithinRadiusOfGridCell(const glm::vec3& pos, const glm::vec3& gridCellMinPoint, float cellWidth, float radius) {
+    const glm::vec3 maxBounds = gridCellMinPoint + glm::vec3(cellWidth);
+    glm::vec3 closestPoint = glm::clamp(pos, gridCellMinPoint, maxBounds);
+
+    return glm::distance(pos, closestPoint) <= radius;
+}
+
 __global__ void kernUpdateVelNeighborSearchScattered(
   int N, int gridResolution, glm::vec3 gridMin,
   float inverseCellWidth, float cellWidth,
@@ -456,15 +467,17 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int rule1NeighborCount = 0;
   int rule3NeighborCount = 0;
 
-  // - Identify which cells may contain neighbors. This isn't always 8. 
-  for (int x = -1; x < 1; ++x) { // TODO - bounds of loops should be generalized to arbitrary neighborhood dist / cell width
-      for (int y = -1; y < 1; ++y) {
-          for (int z = -1; z < 1; ++z) {
+  // Search over neighboring cells within the neighborhood distance of the boid
+  int searchRange = ceil(imax(inverseCellWidthToSearchDistanceRatio, 1.0f));
+  for (int x = -searchRange; x <= searchRange; ++x) {
+      for (int y = -searchRange; y <= searchRange; ++y) {
+          for (int z = -searchRange; z <= searchRange; ++z) {
               const glm::vec3 neighborCell3DUnwrapped = gridCell3D_i + glm::vec3(x, y, z);
               const glm::vec3 neighborCell3DWrapped = wrapIndices(neighborCell3DUnwrapped, gridResolution);
-              const glm::vec3 neighborGridCellCenter = gridMin + (neighborCell3DUnwrapped * cellWidth) + (0.5f * glm::vec3(cellWidth)); // Note the use of the *unwrapped* neighbor here
+              const glm::vec3 neighborGridCellMinPoint = gridMin + (neighborCell3DUnwrapped * cellWidth); // Note the use of the *unwrapped* neighbor here
 
-              if (glm::length(pos_i - neighborGridCellCenter) > cellWidth) continue; // TODO: should be generalized to arbitrary neighbor distance / cellwidth ratios
+              // We can quickly eliminate some neighboring cells whose nearest point is not in range
+              if (!isBoidWithinRadiusOfGridCell(pos_i, neighborGridCellMinPoint, cellWidth, inverseCellWidthToSearchDistanceRatio * cellWidth)) continue;
 
               // - For each cell, read the start/end indices in the boid pointer array.
               int neighborCell1D = gridIndex3Dto1D(neighborCell3DWrapped.x, neighborCell3DWrapped.y, neighborCell3DWrapped.z, gridResolution);
@@ -475,7 +488,6 @@ __global__ void kernUpdateVelNeighborSearchScattered(
               for (int i = cellStart; i <= cellEnd; ++i) {
                   int neighborIdx = particleArrayIndices[i];
                   if (neighborIdx == index) continue;
-
 
                   const glm::vec3 neighborPos = pos[neighborIdx];
                   const glm::vec3 neighborVel = vel1[neighborIdx];
