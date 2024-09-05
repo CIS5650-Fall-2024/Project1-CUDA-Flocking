@@ -54,7 +54,7 @@ __global__ void gather(const int* map, int N, const T* values, T* output) {
 *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 128
+#define blockSize 1
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
@@ -68,7 +68,7 @@ __global__ void gather(const int* map, int N, const T* values, T* output) {
 
 #define maxSpeed 1.0f
 
-#define FULL_NEIGHBOR_CHECK 0
+#define FULL_NEIGHBOR_CHECK 1
 
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
@@ -178,7 +178,12 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
-  gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  #if FULL_NEIGHBOR_CHECK
+    gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  #else
+    gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  #endif
+  
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
