@@ -230,10 +230,44 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
-  // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-  // Rule 2: boids try to stay a distance d away from each other
-  // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+  glm::vec3 thisPos = pos[iSelf];
+  glm::vec3 perceivedCenter = glm::vec3(0.0f);
+  glm::vec3 perceivedVelocity = glm::vec3(0.0f);
+  glm::vec3 c = glm::vec3(0.0f);
+  int rule1Neighbors = 0;
+  int rule3Neighbors = 0;
+  for (int i = 0; i < N; i++) {
+    if (i != iSelf) {
+      glm::vec3 otherPos = pos[i];
+      float distance = distance(thisPos, otherPos);
+      // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+      if (distance < rule1Distance) {
+        perceivedCenter += otherPos;
+        rule1Neighbors++;
+      }
+      // Rule 2: boids try to stay a distance d away from each other
+      if (distance < rule2Distance) {
+        c -= otherPos - thisPos;
+      }
+      // Rule 3: boids try to match the speed of surrounding boids
+      if (distance < rule3Distance) {
+        perceivedVelocity += vel[i];
+        rule3Neighbors++;
+      }
+    }
+  }
+  if (rule1Neighbors != 0) {
+    perceivedCenter /= rule1Neighbors;
+  } else {
+    perceivedCenter = thisPos;
+  }
+  if (rule3Neighbors != 0) {
+    perceivedVelocity /= rule3Neighbors;
+  }
+  glm::vec3 rule1Velocity = (perceivedCenter - thisPos) * rule1Scale;
+  glm::vec3 rule2Velocity = c * rule2Scale;
+  glm::vec3 rule3Velocity = perceivedVelocity * rule3Scale;
+  return rule1Velocity + rule2Velocity + rule3Velocity;
 }
 
 /**
@@ -242,9 +276,23 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 */
 __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   glm::vec3 *vel1, glm::vec3 *vel2) {
+  int index = threadIdx.x + (blockIdx.x * blockDim.x);
+  if (index >= N) {
+    return;
+  }
+  
   // Compute a new velocity based on pos and vel1
+  glm::vec3 velocityChange = computeVelocityChange(N, index, pos, vel1);
+  glm::vec3 newVelocity = vel1[index] + velocityChange;
+
   // Clamp the speed
+  float speed = magnitude(newVelocity);
+  if (speed > maxSpeed) {
+    newVelocity *= maxSpeed / speed;
+  }
+
   // Record the new velocity into vel2. Question: why NOT vel1?
+  vel2[index] = newVelocity;
 }
 
 /**
