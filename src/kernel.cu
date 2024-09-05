@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <cuda.h>
 #include <cmath>
+#include <utility>
 #include <glm/glm.hpp>
 #include "utilityCore.hpp"
 #include "kernel.h"
@@ -66,6 +67,11 @@ dim3 threadsPerBlock(blockSize);
 // Consider why you would need two velocity buffers in a simulation where each
 // boid cares about its neighbors' velocities.
 // These are called ping-pong buffers.
+// Since each boid thread will be updating its velocity and reading the velocities
+// of other boids concurrently with the other boid threads, we need all threads to
+// avoid writing to one of the buffers (where neighbor velocities are to be read)
+// in a given simulation step and only write to one of them and read from the other;
+// in the next simulation step, the roles of these buffers will swap.
 glm::vec3 *dev_pos;
 glm::vec3 *dev_vel1;
 glm::vec3 *dev_vel2;
@@ -223,17 +229,79 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 * stepSimulation *
 ******************/
 
+__device__ glm::vec3 computeVelocityChangeDueToRule1Cohesion(int N, int iSelf, const glm::vec3 *pos) {
+  glm::vec3 perceivedCenter(0.0f, 0.0f, 0.0f);
+  glm::vec3 selfPos = pos[iSelf];
+  int nearbyBoidsCount = 0;
+
+  for (int b = 0; b < N; ++b) {
+    glm::vec3 bPos = pos[b];  
+    if (b != iSelf && distance(bPos, selfPos) < rule1Distance) {
+        perceivedCenter += bPos;
+        nearbyBoidsCount++;
+    }
+  }
+
+  if (nearbyBoidsCount > 0) {
+    // Center of mass of nearby boids.
+    perceivedCenter /= nearbyBoidsCount;
+
+    return (perceivedCenter - selfPos) * rule1Scale;
+  }
+
+  // No nearby boids, no change in velocity.
+  return glm::vec3(0.0f, 0.0f, 0.0f);
+}
+
+__device__ glm::vec3 computeVelocityChangeDueToRule2Separation(int N, int iSelf, const glm::vec3 *pos) {
+  glm::vec3 offsetToKeepDistance(0.0f, 0.0f, 0.0f);
+  glm::vec3 selfPos = pos[iSelf];
+
+  for (int b = 0; b < N; ++b) {
+    glm::vec3 bPos = pos[b];  
+    if (b != iSelf && distance(bPos, selfPos) < rule2Distance) {
+      offsetToKeepDistance -= bPos - selfPos;
+    }
+  }
+
+  return offsetToKeepDistance * rule2Scale;
+}
+
+__device__ glm::vec3 computeVelocityChangeDueToRule3Alignment(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
+  glm::vec3 perceivedVelocity(0.0f, 0.0f, 0.0f);
+  glm::vec3 selfPos = pos[iSelf];
+  int nearbyBoidsCount = 0;
+
+  for (int b = 0; b < N; ++b) {
+    if (b != iSelf && distance(pos[b], selfPos) < rule3Distance) {
+        perceivedVelocity += vel[b];
+        nearbyBoidsCount++;
+    }
+  }
+
+  if (nearbyBoidsCount > 0) {
+    // Average velocity.
+    perceivedVelocity /= nearbyBoidsCount;
+  }
+
+  // If there were no nearby boids, nearbyBoidsCount = 0, then perceivedVelocity = 0 too.
+  return perceivedVelocity * rule3Scale;
+}
+
 /**
 * LOOK-1.2 You can use this as a helper for kernUpdateVelocityBruteForce.
 * __device__ code can be called from a __global__ context
 * Compute the new velocity on the body with index `iSelf` due to the `N` boids
 * in the `pos` and `vel` arrays.
 */
-__device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
+__device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) { 
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+  glm::vec3 velChange = computeVelocityChangeDueToRule1Cohesion(N, iSelf, pos);
   // Rule 2: boids try to stay a distance d away from each other
+  velChange += computeVelocityChangeDueToRule2Separation(N, iSelf, pos);
   // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+  velChange += computeVelocityChangeDueToRule3Alignment(N, iSelf, pos, vel);
+  return velChange;
 }
 
 /**
@@ -245,6 +313,19 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+
+  int iSelf = blockIdx.x*blockDim.x + threadIdx.x;
+
+  glm::vec3 newVel = vel2[iSelf] + computeVelocityChange(N, iSelf, pos, vel1);
+
+  float speed = glm::length(newVel);
+  if (speed > maxSpeed) {
+    // Normalizes the newVel vector so that newVel has same direction but with
+    // maxSpeed length.
+    newVel = (newVel / speed) * maxSpeed;
+  }
+
+  vel2[iSelf] = newVel;
 }
 
 /**
@@ -349,6 +430,25 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+
+  // numObjects was initialized in Boids::initSimulation with the total number
+  // of boids in the simulation. y and z components of dim3 default to 1.
+  dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+  
+  kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, blockSize>>>(
+    numObjects,
+    // Initialized in Boids::initSimulation with random positions.
+    dev_pos,
+    dev_vel1,
+    dev_vel2
+  );
+
+  // dev_vel2 contains the latest velocities.
+  kernUpdatePos<<<fullBlocksPerGrid, blockSize>>>(numObjects, dt, dev_pos, dev_vel2);
+
+  // Boids::copyBoidsToVBO uses dev_vel1 to pass velocities to the visualization
+  // code, which will find the latest velocities in dev_vel1 after the swap.
+  std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
