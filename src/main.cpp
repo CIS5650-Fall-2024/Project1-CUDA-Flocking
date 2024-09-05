@@ -10,6 +10,7 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 #include "kernel.h"
+#include <fstream>
 
 // ================
 // Configuration
@@ -199,13 +200,13 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
     // execute the kernel
-    #if UNIFORM_GRID && COHERENT_GRID
+#if UNIFORM_GRID && COHERENT_GRID
     Boids::stepSimulationCoherentGrid(DT);
-    #elif UNIFORM_GRID
+#elif UNIFORM_GRID
     Boids::stepSimulationScatteredGrid(DT);
-    #else
+#else
     Boids::stepSimulationNaive(DT);
-    #endif
+#endif
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
@@ -220,8 +221,11 @@ void initShaders(GLuint * program) {
     double timebase = 0;
     int frame = 0;
 
-    Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
-                       // your CUDA development setup is ready to go.
+    //Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
+                         // your CUDA development setup is ready to go.
+
+    std::ofstream fpsLogFile("fps_log.csv");
+    fpsLogFile << "Time (s), FPS\n";
 
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
@@ -233,6 +237,8 @@ void initShaders(GLuint * program) {
         fps = frame / (time - timebase);
         timebase = time;
         frame = 0;
+        std::cout << static_cast<int>(time) << ", " << fps << std::endl;
+        fpsLogFile << static_cast<int>(time) << ", " << fps << "\n";
       }
 
       runCUDA();
@@ -259,6 +265,9 @@ void initShaders(GLuint * program) {
       glfwSwapBuffers(window);
       #endif
     }
+    std::cout << "End file." << std::endl;
+    fpsLogFile << "End file." << "\n";
+    fpsLogFile.close();
     glfwDestroyWindow(window);
     glfwTerminate();
   }
