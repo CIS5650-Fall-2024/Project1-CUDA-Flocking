@@ -50,7 +50,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 #define rule2Scale 0.1f
 #define rule3Scale 0.1f
 
-#define maxSpeed 1.0f
+#define maxSpeed 2.5f
 
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
@@ -316,7 +316,7 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
 
   int iSelf = blockIdx.x*blockDim.x + threadIdx.x;
 
-  glm::vec3 newVel = vel2[iSelf] + computeVelocityChange(N, iSelf, pos, vel1);
+  glm::vec3 newVel = vel1[iSelf] + computeVelocityChange(N, iSelf, pos, vel1);
 
   float speed = glm::length(newVel);
   if (speed > maxSpeed) {
