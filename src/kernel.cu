@@ -239,7 +239,7 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   for (int i = 0; i < N; i++) {
     if (i != iSelf) {
       glm::vec3 otherPos = pos[i];
-      float distance = distance(thisPos, otherPos);
+      float distance = glm::distance(thisPos, otherPos);
       // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
       if (distance < rule1Distance) {
         perceivedCenter += otherPos;
@@ -286,7 +286,7 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   glm::vec3 newVelocity = vel1[index] + velocityChange;
 
   // Clamp the speed
-  float speed = magnitude(newVelocity);
+  float speed = glm::length(newVelocity);
   if (speed > maxSpeed) {
     newVelocity *= maxSpeed / speed;
   }
@@ -395,8 +395,16 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 * Step the entire N-body simulation by `dt` seconds.
 */
 void Boids::stepSimulationNaive(float dt) {
+  dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
+  kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_pos, dev_vel1, dev_vel2);
+  checkCUDAErrorWithLine("kernUpdateVelocityBruteForce failed!");
+  kernUpdatePos<<<fullBlocksPerGrid, blockSize>>>(numObjects, dt, dev_pos, dev_vel2);
+  checkCUDAErrorWithLine("kernUpdatePos failed!");
   // TODO-1.2 ping-pong the velocity buffers
+  glm::vec3 *temp = dev_vel2;
+  dev_vel2 = dev_vel1;
+  dev_vel1 = temp;
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
