@@ -385,15 +385,15 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   int rule3NearbyBoidsCount = 0;
 
   for (int b = 0; b < N; ++b) {
-    glm::vec3 bPos = pos[b];
-
     if (b == iSelf) continue;
+
+    glm::vec3 bPos = pos[b];
 
     float selfToBDist = distance(bPos, selfPos);
 
     if (selfToBDist < rule1Distance) {
-        rule1PerceivedCenter += bPos;
-        rule1NearbyBoidsCount++;
+      rule1PerceivedCenter += bPos;
+      rule1NearbyBoidsCount++;
     }
 
     if (selfToBDist < rule2Distance) {
@@ -401,8 +401,8 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
     }
 
     if (selfToBDist < rule3Distance) {
-        rule3PerceivedVelocity += vel[b];
-        rule3NearbyBoidsCount++;
+      rule3PerceivedVelocity += vel[b];
+      rule3NearbyBoidsCount++;
     }
   }
 
@@ -563,7 +563,8 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   float inverseCellWidth, float cellWidth,
   int *gridCellStartIndices, int *gridCellEndIndices,
   int *particleArrayIndices,
-  glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2) {
+  glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2
+) {
   // TODO-2.1 - Update a boid's velocity using the uniform grid to reduce
   // the number of boids that need to be checked.
 
@@ -579,7 +580,14 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   // - Identify which cells may contain neighbors. This isn't always 8.
   // - For each cell, read the start/end indices in the boid pointer array.
 
-  glm::vec3 velChange(0.0f, 0.0f, 0.0f);
+  glm::vec3 selfPos = pos[iSelf];
+
+  glm::vec3 rule1PerceivedCenter(0.0f, 0.0f, 0.0f);
+  glm::vec3 rule2OffsetToKeepDistance(0.0f, 0.0f, 0.0f);
+  glm::vec3 rule3PerceivedVelocity(0.0f, 0.0f, 0.0f);
+
+  int rule1NearbyBoidsCount = 0;
+  int rule3NearbyBoidsCount = 0;
 
   for (int x = -1; x <= 1; ++x) {
     for (int y = -1; y <= 1; ++y) {
@@ -605,16 +613,51 @@ __global__ void kernUpdateVelNeighborSearchScattered(
         );
 
         int neighGridStartIndex = gridCellStartIndices[neighGridIndex1D];
-        if (neighGridStartIndex == -1 ) {
+        if (neighGridStartIndex == -1) {
           continue;
         }
         int neighGridEndIndex = gridCellEndIndices[neighGridIndex1D];
 
-        velChange += computeVelocityChangeDueToRule1Cohesion(iSelf, neighGridStartIndex, neighGridEndIndex, particleArrayIndices, pos);
-        velChange += computeVelocityChangeDueToRule2Separation(iSelf, neighGridStartIndex, neighGridEndIndex, particleArrayIndices, pos);
-        velChange += computeVelocityChangeDueToRule3Alignment(iSelf, neighGridStartIndex, neighGridEndIndex, particleArrayIndices, pos, vel1);
+        for (int i = neighGridStartIndex; i <= neighGridEndIndex; ++i) {
+          int b = particleArrayIndices[i];
+
+          if (b == iSelf) continue;
+
+          glm::vec3 bPos = pos[b];
+
+          float selfToBDist = distance(bPos, selfPos);
+
+          if (selfToBDist < rule1Distance) {
+            rule1PerceivedCenter += bPos;
+            rule1NearbyBoidsCount++;
+          }
+
+          if (selfToBDist < rule2Distance) {
+            rule2OffsetToKeepDistance -= bPos - selfPos;
+          }
+
+          if (selfToBDist < rule3Distance) {
+            rule3PerceivedVelocity += vel1[b];
+            rule3NearbyBoidsCount++;
+          }
+        }
       }
     }
+  }
+
+  // Velocity change due to rule 2: separation.
+  glm::vec3 velChange = rule2OffsetToKeepDistance * rule2Scale;
+
+  // Add velocity change due to rule 1: cohesion.
+  if (rule1NearbyBoidsCount > 0) {
+    // From self position to center of mass of nearby boids.
+    velChange += ((rule1PerceivedCenter/ (float)rule1NearbyBoidsCount) - selfPos) * rule1Scale;
+  }
+
+  // Add velocity change due to rule 3: alignment.
+  if (rule3NearbyBoidsCount > 0) {
+    // Average velocity of nearby boids, scaled.
+    velChange += (rule3PerceivedVelocity / (float)rule3NearbyBoidsCount) * rule3Scale;
   }
 
   glm::vec3 newVel = vel1[iSelf] + velChange;
