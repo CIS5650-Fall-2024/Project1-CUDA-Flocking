@@ -17,6 +17,10 @@
 
 #define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
 
+#define check27neighbors 0
+
+#define checkOptimize 1
+
 /**
 * Check for CUDA errors; print and exit if there was a problem.
 */
@@ -187,6 +191,7 @@ void Boids::initSimulation(int N) {
   cudaMalloc((void**)&dev_gridCellEndIndices, gridCellCount * sizeof(int));
   checkCUDAErrorWithLine("cudaMalloc dev_gridCellEndIndices failed!");
 
+  // Coherent buffers
   cudaMalloc((void**)&dev_coherentPos, N * sizeof(glm::vec3));
   checkCUDAErrorWithLine("cudaMalloc dev_coherentPos failed!");
 
@@ -393,9 +398,6 @@ __global__ void kernComputeIndices(int N, int gridResolution,
 
     // Store the grid index corresponding to the current boid to gridIndices
     gridIndices[index] = index1D;
-
-    // Debug: outputs to verify values
-    //printf("Thread %d: ix = %d, iy = %d, iz = %d, ndex1D = %d\n, gridIndices = %d\n", index, ix, iy, iz, index1D ,gridIndices[index]);
 }
 
 // LOOK-2.1 Consider how this could be useful for indicating that a cell
@@ -413,22 +415,27 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
   // Identify the start point of each cell in the gridIndices array.
   // This is basically a parallel unrolling of a loop that goes
   // "this index doesn't match the one before it, must be a new cell!"
+  
   // The particleGridIndices is sorted.
   int index = threadIdx.x + (blockIdx.x * blockDim.x);
   if (index >= N) {
 	return;
   }
 
+  // Get cell index of the current boid
   int currentCell = particleGridIndices[index];
 
+  // First boid in the cell
   if (index == 0) {
       gridCellStartIndices[currentCell] = index;
   }
+  // Last boid in the cell
   else if (index == N - 1) {
       gridCellEndIndices[currentCell] = index;
   }
   else {
       int lastCell = particleGridIndices[index - 1];
+      // If the current cell index is different from the last cell index, then boid is in a new cell
       if (currentCell != lastCell) {
           gridCellStartIndices[currentCell] = index;
           gridCellEndIndices[lastCell] = index - 1;
@@ -471,17 +478,18 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     int iy = glm::floor((currentBoidPos.y - gridMin.y) * inverseCellWidth);
     int iz = glm::floor((currentBoidPos.z - gridMin.z) * inverseCellWidth);
 
-
     // - Identify which cells may contain neighbors. This isn't always 8.
-    for (int i = 0; i < 2; ++i) {
-        for (int j = 0; j < 2; ++j) {
-            for (int k = 0; k < 2; ++k) {
-                int x = ix + i;
-                int y = iy + j;
-                int z = iz + k;
+    // check the 3x3x3 cells around the current cell
+    // In z, y, x order
+    for (int z = -1; z <= 1; ++z) {
+        for (int y = -1; y <= 1; ++y) {
+            for (int x = -1; x <= 1; ++x) {
+                int idxZ = iz + z;
+                int idxY = iy + y;
+                int idxX = ix + x;
                 // Check boundary
-                if (x >= 0 && x < gridResolution && y >= 0 && y < gridResolution && z >= 0 && z < gridResolution) {
-                    int neighborIndex = gridIndex3Dto1D(x, y, z, gridResolution);
+                if (idxX >= 0 && idxX< gridResolution && idxY >= 0 && idxY < gridResolution && idxZ >= 0 && idxZ < gridResolution) {
+                    int neighborIndex = gridIndex3Dto1D(idxX, idxY, idxZ, gridResolution);
                     // Check if the cell is empty
                     int startBoidIndex = gridCellStartIndices[neighborIndex];
                     int endBoidIndex = gridCellEndIndices[neighborIndex];
@@ -527,7 +535,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     vel2[index] = newVel;
 }
 
-//
+
 __global__ void kernSortBuffer(int N, glm::vec3* pos, glm::vec3* vel1, glm::vec3* vel2, glm::vec3* coherentPos, glm::vec3* coherentVel1, glm::vec3* coherentVel2, int* particleArrayIndices) {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (index < N) {
@@ -576,17 +584,42 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     int iy = glm::floor((currentBoidPos.y - gridMin.y) * inverseCellWidth);
     int iz = glm::floor((currentBoidPos.z - gridMin.z) * inverseCellWidth);
 
+    // consider what order the cells should be checked in to maximize the memory benefits of reordering the boids data.
+    glm::vec3 InCellOffset = currentBoidPos * inverseCellWidth - glm::floor(currentBoidPos * inverseCellWidth);
+    
 
-    // - Identify which cells may contain neighbors. This isn't always 8.
-    for (int i = 0; i < 2; ++i) {
-        for (int j = 0; j < 2; ++j) {
-            for (int k = 0; k < 2; ++k) {
-                int x = ix + i;
-                int y = iy + j;
-                int z = iz + k;
+    // check the boid's position in the cell, and decide the search direction
+    glm::vec3 searchStart = {
+        (InCellOffset.x) < 0.5f ? -1 : 0,
+        (InCellOffset.y) < 0.5f ? -1 : 0,
+        (InCellOffset.z) < 0.5f ? -1 : 0
+	};
+
+    glm::vec3 searchEnd = { 
+        (InCellOffset.x) < 0.5f ? 0 : 1,
+        (InCellOffset.y) < 0.5f ? 0 : 1,
+        (InCellOffset.z) < 0.5f ? 0 : 1
+    };
+
+#if check27neighbors 1
+    // - Originally, I use 3x3x3 cells around the current cell
+    // In z, y, x order
+    for (int z = -1; z <= 1; ++z) {
+        for (int y = -1; y <= 1; ++y) {
+            for (int x = -1; x <= 1; ++x) {
+#endif
+#if checkOptimize 
+    // Now, I use the search direction and range to determine the cells to search
+    for (int z = searchStart.z; z <= searchEnd.z; ++z) {
+        for (int y = searchStart.y; y <= searchEnd.y; ++y) {
+            for (int x = searchStart.x; x <= searchEnd.x; ++x) {
+#endif
+                int idxZ = iz + z;
+                int idxY = iy + y;
+                int idxX = ix + x;
                 // Check boundary
-                if (x >= 0 && x < gridResolution && y >= 0 && y < gridResolution && z >= 0 && z < gridResolution) {
-                    int neighborIndex = gridIndex3Dto1D(x, y, z, gridResolution);
+                if (idxX >= 0 && idxX < gridResolution && idxY >= 0 && idxY < gridResolution && idxZ >= 0 && idxZ < gridResolution) {
+                    int neighborIndex = gridIndex3Dto1D(idxX, idxY, idxZ, gridResolution);
                     // Check if the cell is empty
                     int startBoidIndex = gridCellStartIndices[neighborIndex];
                     int endBoidIndex = gridCellEndIndices[neighborIndex];
@@ -720,9 +753,8 @@ void Boids::stepSimulationCoherentGrid(float dt) {
     kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos, dev_particleArrayIndices, dev_particleGridIndices);
     
     thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
-    //thrust::sort_by_key(dev_particleArrayIndices, dev_particleArrayIndices + numObjects, dev_thrust_pos);
-    //thrust::sort_by_key(dev_particleArrayIndices, dev_particleArrayIndices + numObjects, dev_thrust_vel1);
-    //thrust::sort_by_key(dev_particleArrayIndices, dev_particleArrayIndices + numObjects, dev_thrust_vel2);
+    // use the rearranged array index buffer to reshuffle all
+    //   the particle data in the simulation array.
     kernSortBuffer << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_pos, dev_vel1, dev_vel2, dev_coherentPos, dev_coherentVel1, dev_coherentVel2, dev_particleArrayIndices);
     std::swap(dev_pos, dev_coherentPos);
     std::swap(dev_vel1, dev_coherentVel1);
