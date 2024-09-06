@@ -565,8 +565,8 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int *particleArrayIndices,
   glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2
 ) {
-  // TODO-2.1 - Update a boid's velocity using the uniform grid to reduce
-  // the number of boids that need to be checked.
+  // Update a boid's velocity using the uniform grid to reduce the number of 
+  // boids that need to be checked.
 
   int iSelf = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (iSelf >= N) {
@@ -574,36 +574,47 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     return;
   }
 
-  // - Identify the grid cell that this particle is in
-  glm::ivec3 gridIndex3D = (pos[iSelf] - gridMin) * inverseCellWidth;
-
-  // - Identify which cells may contain neighbors. This isn't always 8.
-  // - For each cell, read the start/end indices in the boid pointer array.
-
   glm::vec3 selfPos = pos[iSelf];
 
+  // Position of this boid relative to the origin of the grid, scaled according to
+  // the uniform grid coordinate system.
+  glm::vec3 selfPosInGridSpace = (pos[iSelf] - gridMin) * inverseCellWidth;
+
+  // Grid cell index that contains this boid. (Cast vec3 to ivec3 to obtain integer
+  // grid cell index from position relative to grid.)
+  glm::ivec3 gridIndex3D = selfPosInGridSpace;
+
+  // Data to be computed by iterating over nearby cells and the boids they contain.
+  // Center of mass of nearby boids, to be computed.
   glm::vec3 rule1PerceivedCenter(0.0f, 0.0f, 0.0f);
   glm::vec3 rule2OffsetToKeepDistance(0.0f, 0.0f, 0.0f);
+  // Average velocity of nearby boids, to be computed.
   glm::vec3 rule3PerceivedVelocity(0.0f, 0.0f, 0.0f);
-
   int rule1NearbyBoidsCount = 0;
   int rule3NearbyBoidsCount = 0;
 
-  for (int x = -1; x <= 1; ++x) {
-    for (int y = -1; y <= 1; ++y) {
-      for (int z = -1; z <= 1; ++z) {
-        // - Access each boid in the cell and compute velocity change from
-        //   the boids rules, if this boid is within the neighborhood distance.
-
-        glm::ivec3 neighGridIndex3D = gridIndex3D + glm::ivec3(x, y, z);
-
-        if (
-          neighGridIndex3D.x < 0 || neighGridIndex3D.x >= gridResolution
-          || neighGridIndex3D.y < 0 || neighGridIndex3D.y >= gridResolution
-          || neighGridIndex3D.z < 0 || neighGridIndex3D.z >= gridResolution
-        ) {
-          continue;
-        }
+  // Iterate over the grid cells that overlap with the sphere centered around this
+  // boid and whose radius is max(rule1Distance, rule2Distance, rule3Distance). This
+  // way, we narrow down the search to only the grid cells that contain boids that
+  // could satisfy at least one of the neighborhood distance rules.
+  //
+  // A cell's width/height/depth is twice the maximum neighborhood distance in simulation
+  // space. Since a cell's width is 1 in grid space, the maximum neighborhood distance in 
+  // grid space is 0.5.
+  //
+  // Since a cell's width/height/depth is twice the maximum neighborhood size, the neighborhood
+  // can only occupy 1 or 2 adjacent grid cells in each dimension (x, y, z). Determine which.
+  float maxNeighborhoodDistInGridSpace = 0.5f;
+  int minX = imax(int(selfPosInGridSpace.x - maxNeighborhoodDistInGridSpace), 0);
+  int maxX = imin(int(selfPosInGridSpace.x + maxNeighborhoodDistInGridSpace), gridResolution-1);
+  int minY = imax(int(selfPosInGridSpace.y - maxNeighborhoodDistInGridSpace), 0);
+  int maxY = imin(int(selfPosInGridSpace.y + maxNeighborhoodDistInGridSpace), gridResolution-1);
+  int minZ = imax(int(selfPosInGridSpace.z - maxNeighborhoodDistInGridSpace), 0);
+  int maxZ = imin(int(selfPosInGridSpace.z + maxNeighborhoodDistInGridSpace), gridResolution-1);
+  for (int x = minX; x <= maxX; ++x) {
+    for (int y = minY; y <= maxY; ++y) {
+      for (int z = minZ; z <= maxZ; ++z) {
+        glm::ivec3 neighGridIndex3D = glm::ivec3(x, y, z);
 
         int neighGridIndex1D = gridIndex3Dto1D(
           neighGridIndex3D.x,
@@ -614,8 +625,10 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
         int neighGridStartIndex = gridCellStartIndices[neighGridIndex1D];
         if (neighGridStartIndex == -1) {
+          // -1 is a special value for grid cells that don't contain boids.
           continue;
         }
+        // Inclusive.
         int neighGridEndIndex = gridCellEndIndices[neighGridIndex1D];
 
         for (int i = neighGridStartIndex; i <= neighGridEndIndex; ++i) {
@@ -662,8 +675,6 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
   glm::vec3 newVel = vel1[iSelf] + velChange;
 
-  // Clamp the speed change before putting the new velocity in vel2.
-  // TODO: clamp speed change or new speed?
   float speed = glm::length(newVel);
   if (speed > maxSpeed) {
     // Normalizes the newVel vector so that newVel has same direction but with
