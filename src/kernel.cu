@@ -483,6 +483,7 @@ __global__ void kernUpdatePos(int N, float dt, glm::vec3 *pos, glm::vec3 *vel) {
 //          for(x)
 //            for(y)
 //             for(z)? Or some other order?
+// Most memory efficient method is for(z) for(y) for(x).
 __device__ int gridIndex3Dto1D(int x, int y, int z, int gridResolution) {
   return x + y * gridResolution + z * gridResolution * gridResolution;
 }
@@ -611,9 +612,12 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int maxY = imin(int(selfPosInGridSpace.y + maxNeighborhoodDistInGridSpace), gridResolution-1);
   int minZ = imax(int(selfPosInGridSpace.z - maxNeighborhoodDistInGridSpace), 0);
   int maxZ = imin(int(selfPosInGridSpace.z + maxNeighborhoodDistInGridSpace), gridResolution-1);
-  for (int x = minX; x <= maxX; ++x) {
+  // This is the most memory efficient order for the iteration. Because of the gridIndex3Dto1D 
+  // mapping of gridCellStartIndices/gridCellEndIndices, if we fix z and y, all (x, y, z) grid
+  // coordinates map to contiguous elements in these arrays.
+  for (int z = minZ; z <= maxZ; ++z) {
     for (int y = minY; y <= maxY; ++y) {
-      for (int z = minZ; z <= maxZ; ++z) {
+      for (int x = minX; x <= maxX; ++x) {
         glm::ivec3 neighGridIndex3D = glm::ivec3(x, y, z);
 
         int neighGridIndex1D = gridIndex3Dto1D(
