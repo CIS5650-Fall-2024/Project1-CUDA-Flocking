@@ -69,11 +69,6 @@ dim3 threadsPerBlock(blockSize);
 glm::vec3 *dev_pos;
 glm::vec3 *dev_vel1;
 glm::vec3 *dev_vel2;
-// coherent buffers
-glm::vec3* dev_coherentPos;
-glm::vec3* dev_coherentVel1;
-glm::vec3* dev_coherentVel2;
-
 
 // LOOK-2.1 - these are NOT allocated for you. You'll have to set up the thrust
 // pointers on your own too.
@@ -90,6 +85,9 @@ int *dev_gridCellEndIndices;   // to this cell?
 
 // TODO-2.3 - consider what additional buffers you might need to reshuffle
 // the position and velocity data to be coherent within cells.
+glm::vec3* dev_coherentPos;
+glm::vec3* dev_coherentVel1;
+glm::vec3* dev_coherentVel2;
 
 // LOOK-2.1 - Grid parameters based on simulation parameters.
 // These are automatically computed for you in Boids::initSimulation
@@ -188,6 +186,15 @@ void Boids::initSimulation(int N) {
 
   cudaMalloc((void**)&dev_gridCellEndIndices, gridCellCount * sizeof(int));
   checkCUDAErrorWithLine("cudaMalloc dev_gridCellEndIndices failed!");
+
+  cudaMalloc((void**)&dev_coherentPos, N * sizeof(glm::vec3));
+  checkCUDAErrorWithLine("cudaMalloc dev_coherentPos failed!");
+
+  cudaMalloc((void**)&dev_coherentVel1, N * sizeof(glm::vec3));
+  checkCUDAErrorWithLine("cudaMalloc dev_coherentVel1 failed!");
+
+  cudaMalloc((void**)&dev_coherentVel2, N * sizeof(glm::vec3));
+  checkCUDAErrorWithLine("cudaMalloc dev_coherentVel2 failed!");
 
   // thrust pointers
   dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
@@ -745,6 +752,9 @@ void Boids::endSimulation() {
   cudaFree(dev_gridCellStartIndices);
   cudaFree(dev_particleGridIndices);
   cudaFree(dev_particleArrayIndices);
+  cudaFree(dev_coherentPos);
+  cudaFree(dev_coherentVel1);
+  cudaFree(dev_coherentVel2);
 
 }
 
