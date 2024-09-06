@@ -375,12 +375,52 @@ __device__ glm::vec3 computeVelocityChangeDueToRule3Alignment(int iSelf, int sta
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) { 
-  // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-  glm::vec3 velChange = computeVelocityChangeDueToRule1Cohesion(N, iSelf, pos);
-  // Rule 2: boids try to stay a distance d away from each other
-  velChange += computeVelocityChangeDueToRule2Separation(N, iSelf, pos);
-  // Rule 3: boids try to match the speed of surrounding boids
-  velChange += computeVelocityChangeDueToRule3Alignment(N, iSelf, pos, vel);
+  glm::vec3 selfPos = pos[iSelf];
+
+  glm::vec3 rule1PerceivedCenter(0.0f, 0.0f, 0.0f);
+  glm::vec3 rule2OffsetToKeepDistance(0.0f, 0.0f, 0.0f);
+  glm::vec3 rule3PerceivedVelocity(0.0f, 0.0f, 0.0f);
+  
+  int rule1NearbyBoidsCount = 0;
+  int rule3NearbyBoidsCount = 0;
+
+  for (int b = 0; b < N; ++b) {
+    glm::vec3 bPos = pos[b];
+
+    if (b == iSelf) continue;
+
+    float selfToBDist = distance(bPos, selfPos);
+
+    if (selfToBDist < rule1Distance) {
+        rule1PerceivedCenter += bPos;
+        rule1NearbyBoidsCount++;
+    }
+
+    if (selfToBDist < rule2Distance) {
+      rule2OffsetToKeepDistance -= bPos - selfPos;
+    }
+
+    if (selfToBDist < rule3Distance) {
+        rule3PerceivedVelocity += vel[b];
+        rule3NearbyBoidsCount++;
+    }
+  }
+
+  // Velocity change due to rule 2: separation.
+  glm::vec3 velChange = rule2OffsetToKeepDistance * rule2Scale;
+
+  // Add velocity change due to rule 1: cohesion.
+  if (rule1NearbyBoidsCount > 0) {
+    // From self position to center of mass of nearby boids.
+    velChange += ((rule1PerceivedCenter/ (float)rule1NearbyBoidsCount) - selfPos) * rule1Scale;
+  }
+
+  // Add velocity change due to rule 3: alignment.
+  if (rule3NearbyBoidsCount > 0) {
+    // Average velocity of nearby boids, scaled.
+    velChange += (rule3PerceivedVelocity / (float)rule3NearbyBoidsCount) * rule3Scale;
+  }
+
   return velChange;
 }
 
@@ -580,7 +620,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   glm::vec3 newVel = vel1[iSelf] + velChange;
 
   // Clamp the speed change before putting the new velocity in vel2.
-  // TODO: clamp speed change or speed?
+  // TODO: clamp speed change or new speed?
   float speed = glm::length(newVel);
   if (speed > maxSpeed) {
     // Normalizes the newVel vector so that newVel has same direction but with
