@@ -60,7 +60,7 @@ int main(int argc, char* argv[]);
 //====================================
 // Main loop
 //====================================
-void mainLoop(unsigned int numBoids, void(*simulation)(float));
+void mainLoop();
 void errorCallback(int error, const char *description);
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
@@ -71,19 +71,14 @@ void runCUDA(void(*simulation)(float));
 //====================================
 // Benchmarking
 //====================================
-struct BenchmarkTime {  
-    double milliseconds;
-    bool timedOut;
-};
-
 void printBenchmarks();
-BenchmarkTime benchmarkSecondsPerFrame(unsigned int numBoids, void(*simulation)(float));
+double benchmarkMsPerFrame(unsigned int numBoids, void(*simulation)(float));
 
 //====================================
 // Setup/init Stuff
 //====================================
 bool init(int argc, char **argv);
 void initVAO();
-void fillOpenGLBuffers(unsigned int numBoids);
+void fillAndRegisterOpenGLBuffers(unsigned int numBoids);
 void unregisterOpenGLBuffers();
 void initShaders(GLuint *program);

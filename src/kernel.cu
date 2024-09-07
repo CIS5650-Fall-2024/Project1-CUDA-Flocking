@@ -39,7 +39,7 @@ void checkCUDAError(const char *msg, int line = -1)
  *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 128
+size_t blockSize;
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
@@ -143,9 +143,10 @@ __global__ void kernGenerateRandomPosArray(int time, int N, glm::vec3 *arr, floa
 /**
  * Initialize memory, update some globals
  */
-void Boids::initSimulation(int N)
+void Boids::initSimulation(int N, size_t B)
 {
   numObjects = N;
+  blockSize = B;
   dim3 fullBlocksPerGrid((N + blockSize - 1) / blockSize);
 
   checkCUDAErrorWithLine("initSimulation failed!");
@@ -508,7 +509,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 __global__ void kernShufflePosVel(
     int N, int *particleArrayIndices, glm::vec3 *dstPos, glm::vec3 *srcPos, glm::vec3 *dstVel, glm::vec3 *srcVel)
 {
-  int index = blockIdx.x * blockSize + threadIdx.x;
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
   if (index >= N)
   {
     return;

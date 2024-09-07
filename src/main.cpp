@@ -18,8 +18,8 @@
 // ================
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
-#define VISUALIZE 1
-#define UNIFORM_GRID 0
+#define VISUALIZE 0
+#define UNIFORM_GRID 1
 #define COHERENT_GRID 0
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
@@ -37,45 +37,41 @@ int main(int argc, char *argv[])
   }
 
   printBenchmarks();
-
-  // void(*simulation)(float);
-  // // Pick a kernel
-  // #if UNIFORM_GRID && COHERENT_GRID
-  //   simulation = Boids::stepSimulationCoherentGrid;
-  // #elif UNIFORM_GRID
-  //   simulation = Boids::stepSimulationScatteredGrid;
-  // #else
-  //   simulation = Boids::stepSimulationNaive;
-  // #endif
-
-  // Boids::unitTest();
-
-  // Boids::endSimulation();
+  // mainLoop();
+  Boids::endSimulation();
   return 0;
 }
 
 void printBenchmarks() {
-  std::array<unsigned int, 10> boidCounts = {50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 10000000};
+  std::array<unsigned int, 4> boidCounts = {1000, 10000, 50000, 100000};
   std::array<void(*)(float), 3> simulations = {Boids::stepSimulationNaive, Boids::stepSimulationScatteredGrid, Boids::stepSimulationCoherentGrid, };
   std::array<std::string, 3> simNames = {"Naive", "Scattered", "Coherent"};
 
-  for (unsigned int numBoids : boidCounts) {
-    fillOpenGLBuffers(numBoids);
-    Boids::initSimulation(numBoids);
-    std::cout << numBoids << " ";
-    for (size_t i = 0; i < 3; i++) {
-      if (numBoids > 50000 && i == 0) {
-        std::cout << "N/A ";
-        continue;
+  for (unsigned int blockSize = 16; blockSize <= 1024; blockSize *= 4) {
+    for (unsigned int numBoids : boidCounts) {
+      // auto err = cudaGetLastError();
+      // if (cudaGetLastError() != err) {
+      //   std::cerr << "Cuda error: " << err << std::endl;
+      //   exit(1);
+      // }
+      fillAndRegisterOpenGLBuffers(numBoids);
+      Boids::initSimulation(numBoids, blockSize);
+      std::cerr << blockSize << " " << numBoids << " ";
+      for (size_t i = 0; i < 3; i++) {
+        if (numBoids >= 50000 && i == 0) {
+          std::cerr << "N/A ";
+          continue;
+        }
+        double benchmarkMs = benchmarkMsPerFrame(numBoids, simulations[i]);
+        std::cerr << benchmarkMs << " ";
       }
-      BenchmarkTime bench = benchmarkSecondsPerFrame(numBoids, simulations[i]);
-      std::cout << bench.milliseconds * (bench.timedOut ? -1 : 1) << " ";
+      std::cerr << std::endl;
+      Boids::endSimulation();
+      cudaDeviceSynchronize();
+      unregisterOpenGLBuffers();
     }
-    std::cout << std::endl;
-    Boids::endSimulation();
-    cudaDeviceSynchronize();
-    unregisterOpenGLBuffers();
   }
+  
 }
 
 //-------------------------------
@@ -177,14 +173,14 @@ void initVAO() {
   glVertexAttribPointer((GLuint)velocitiesLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
 }
 
-void fillOpenGLBuffers(unsigned int numBoids) {
+void fillAndRegisterOpenGLBuffers(unsigned int numBoids) {
   std::vector<glm::vec4> bodies(numBoids, glm::vec4(0, 0, 0, 1));
   glBindBuffer(GL_ARRAY_BUFFER, boidVBO_positions);
   glBufferData(GL_ARRAY_BUFFER, numBoids * sizeof(glm::vec4), bodies.data(), GL_DYNAMIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, boidVBO_velocities);
   glBufferData(GL_ARRAY_BUFFER, numBoids * sizeof(glm::vec4), bodies.data(), GL_DYNAMIC_DRAW);
-  auto err = cudaGLRegisterBufferObject(boidVBO_positions);
-  err = cudaGLRegisterBufferObject(boidVBO_velocities);  
+  cudaGLRegisterBufferObject(boidVBO_positions);
+  cudaGLRegisterBufferObject(boidVBO_velocities);  
 }
 
 void unregisterOpenGLBuffers()
@@ -242,63 +238,68 @@ void runCUDA(void(*simulation)(float))
 // Gets #microseconds per frame
 // Waits until we have a converged time (variance over the past dequeSize frames is < thresholdVariance)
 // Or until 5 minutes have passed
-BenchmarkTime benchmarkSecondsPerFrame(unsigned int numBoids, void (*simulation)(float))
+double benchmarkMsPerFrame(unsigned int numBoids, void (*simulation)(float))
 {
-  const size_t dequeSize = 256;
-  const double thresholdVariance = 1e-5;
-  const double maxRuntime = 120;
+  const size_t dequeSize = 1024;
+  const double desiredRuntime = 120;
 
   double startTime = glfwGetTime();
   double timebase;
 
   std::deque<double> pastFrames;
 
-  double mean = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0) / dequeSize;
-  bool timeOut = false;
+  double mean = 0;
 
-  while (!timeOut) {
+  while (true) {
     glfwPollEvents();
+
+    if (glfwWindowShouldClose(window)) {
+      glfwDestroyWindow(window);
+      glfwTerminate();
+      return mean;
+    }
+
     timebase = glfwGetTime();
     runCUDA(simulation);
     double time = glfwGetTime();
     double frameTime = time - timebase;
-    pastFrames.push_back(frameTime);
+    pastFrames.push_back(frameTime * 1000);
     if (pastFrames.size() > dequeSize) {
       pastFrames.pop_front();
     }
     
     mean = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0) / pastFrames.size();
-    double variance = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0, [=](double acc, double elem) {
-      double diff = elem - mean;
-      return acc + diff * diff;
-    }) / (dequeSize - 1);
-
-    if (variance < thresholdVariance && pastFrames.size() >= dequeSize) {
-      break;
-    }
 
     double runningTime = time - startTime;
-    // std::cout << runningTime << std::endl;
-    timeOut = (runningTime > maxRuntime) || glfwWindowShouldClose(window);
+    if (runningTime > desiredRuntime) {
+      break;
+    }
 
     std::ostringstream ss;
     ss << "ms per frame: ";
     ss.precision(5);
-    ss << mean * 1000;
-    ss << "\t current variance: ";
-    ss << variance;
+    ss << mean;
     glfwSetWindowTitle(window, ss.str().c_str());
   }
 
-  if (glfwWindowShouldClose(window)) {
-    glfwDestroyWindow(window);
-    glfwTerminate();
-  }
-
-  return BenchmarkTime {mean * 1000, timeOut};
+  return mean;
 }
 
-void mainLoop(unsigned int numBoids, void(*simulation)(float)) {
+void mainLoop() {
+  void(*simulation)(float);
+  #if UNIFORM_GRID && COHERENT_GRID
+    simulation = Boids::stepSimulationCoherentGrid;
+  #elif UNIFORM_GRID
+    simulation = Boids::stepSimulationScatteredGrid;
+  #else
+    simulation = Boids::stepSimulationNaive;
+  #endif
+
+  unsigned int numBoids = 50000;
+  unsigned int blockSize = 128;
+  fillAndRegisterOpenGLBuffers(numBoids);
+  Boids::initSimulation(numBoids, blockSize);
+
   double fps = 0;
   double timebase = 0;
   int frame = 0;
