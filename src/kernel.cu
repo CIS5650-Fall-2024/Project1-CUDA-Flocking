@@ -194,7 +194,7 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("cudaMalloc dev_reshuffle_pos failed!");
 
   cudaMalloc((void**)&dev_reshuffle_vel, N * sizeof(glm::vec3));
-  checkCUDAErrorWithLine("cudaMalloc dev_reshuffle_pos failed!");
+  checkCUDAErrorWithLine("cudaMalloc dev_reshuffle_vel failed!");
 
   cudaDeviceSynchronize();
 }
