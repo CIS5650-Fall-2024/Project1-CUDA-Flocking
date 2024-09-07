@@ -11,6 +11,7 @@
 #include <cuda_gl_interop.h>
 #include "kernel.h"
 #include <numeric>
+#include <deque>
 
 // ================
 // Configuration
@@ -36,7 +37,22 @@ int main(int argc, char *argv[])
   }
 
   unsigned int numBoids = 5000;
-  mainLoop(numBoids);
+  fillOpenGLBuffers(numBoids);
+  Boids::initSimulation(numBoids);
+
+  void(*simulation)(float);
+
+  // Pick a kernel
+  #if UNIFORM_GRID && COHERENT_GRID
+    simulation = Boids::stepSimulationCoherentGrid;
+  #elif UNIFORM_GRID
+    simulation = Boids::stepSimulationScatteredGrid;
+  #else
+    simulation = Boids::stepSimulationNaive;
+  #endif
+
+  mainLoop(numBoids, simulation);
+  // benchmarkSecondsPerFrame(numBoids, nullptr);
   Boids::endSimulation();
   return 0;
 }
@@ -106,20 +122,11 @@ bool init(int argc, char **argv) {
   {
     return false;
   }
-
-  // Initialize drawing state
-  
-
   // Default to device ID 0. If you have more than one GPU and want to test a non-default one,
   // change the device ID.
   cudaGLSetGLDevice(0);
 
   initVAO();
-  unsigned int numBoids = 5000;
-  
-  fillOpenGLBuffers(numBoids);
-  // Initialize N-body simulation
-  Boids::initSimulation(numBoids);
 
   updateCamera();
 
@@ -182,7 +189,7 @@ void initShaders(GLuint *program)
 //====================================
 // Main loop
 //====================================
-void runCUDA()
+void runCUDA(void(*simulation)(float))
 {
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not
@@ -195,14 +202,7 @@ void runCUDA()
   cudaGLMapBufferObject((void **)&dptrVertPositions, boidVBO_positions);
   cudaGLMapBufferObject((void **)&dptrVertVelocities, boidVBO_velocities);
 
-// execute the kernel
-#if UNIFORM_GRID && COHERENT_GRID
-  Boids::stepSimulationCoherentGrid(DT);
-#elif UNIFORM_GRID
-  Boids::stepSimulationScatteredGrid(DT);
-#else
-  Boids::stepSimulationNaive(DT);
-#endif
+  simulation(DT);
 
 #if VISUALIZE
   Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
@@ -212,7 +212,43 @@ void runCUDA()
   cudaGLUnmapBufferObject(boidVBO_velocities);
 }
 
-void mainLoop(unsigned int numBoids) {
+unsigned int benchmarkSecondsPerFrame(unsigned int numBoids, void (*simulation)(float))
+{
+  const size_t dequeSize = 1024;
+
+  double timebase = 0;
+  std::deque<double> pastFrames;
+  size_t frame = 0;
+
+  for (; frame < dequeSize; frame++) {
+    timebase = glfwGetTime();
+    runCUDA(simulation);
+    double time = glfwGetTime();
+    pastFrames.push_back(time - timebase);
+  }
+
+  while (!glfwWindowShouldClose(window)) {
+    timebase = glfwGetTime();
+    runCUDA(simulation);
+    double time = glfwGetTime();
+    pastFrames.push_back(time - timebase);
+    pastFrames.pop_front();
+
+    double mean = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0) / dequeSize;
+    double variance = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0, [=](double acc, double elem) {
+      double diff = elem - mean;
+      return acc + diff * diff;
+    });
+
+    std::cout << mean << ", " << variance << std::endl;
+  }
+
+  glfwDestroyWindow(window);
+  glfwTerminate();
+  return 0;
+}
+
+void mainLoop(unsigned int numBoids, void(*simulation)(float)) {
   double fps = 0;
   double timebase = 0;
   int frame = 0;
@@ -234,7 +270,7 @@ void mainLoop(unsigned int numBoids) {
       frame = 0;
     }
 
-    runCUDA();
+    runCUDA(simulation);
 
     std::ostringstream ss;
     ss << "[";
