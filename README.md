@@ -48,7 +48,7 @@ contiguous in memory.
 
 Example simulation:
 
-|![](images/coherent.gif)|
+|![](images/indirection.gif)|
 |:--:|
 |*500,000 boids, scene scale = 200*|
 
