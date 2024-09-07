@@ -233,6 +233,84 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
   // Rule 2: boids try to stay a distance d away from each other
   // Rule 3: boids try to match the speed of surrounding boids
+    
+    // declare the perceived_center variable for the first rule
+    glm::vec3 perceived_center {0.0f};
+
+    // declare the c variable for the second rule
+    glm::vec3 c {0.0f};
+
+    // declare the perceived_velocity variable for the third rule
+    glm::vec3 perceived_velocity {0.0f};
+
+    // declare the number of neighbors for the first rule
+    int first_rule_neighbor_count {0};
+
+    // declare the number of neighbors for the third rule
+    int third_rule_neighbor_count {0};
+
+    // store the position of the current element
+    const glm::vec3 current_position {pos[iSelf]};
+
+    // iterate through all the elements
+    for (int index {0}; index < N; index += 1) {
+
+        // avoid comparing the same element
+        if (index == iSelf) {
+            continue;
+        }
+
+        // obtain the position of the iterated element
+        const glm::vec3 iterated_position {pos[index]};
+
+        // obtain the velocity of the iterated element
+        const glm::vec3 iterated_velocity {vel[index]};
+
+        // compute the vector from the iterated position to the current position
+        const glm::vec3 vector = iterated_position - current_position;
+
+        // compute the distance between the iterated and the current element
+        const float distance = glm::length(vector);
+
+        // execute the first rule
+        if (distance < rule1Distance) {
+            perceived_center += iterated_position;
+            first_rule_neighbor_count += 1;
+        }
+
+        // execute the second rule
+        if (distance < rule2Distance) {
+            c -= vector;
+        }
+
+        // execute the third rule
+        if (distance < rule3Distance) {
+            perceived_velocity += iterated_velocity;
+            third_rule_neighbor_count += 1;
+        }
+    }
+
+    // declare the output velocity
+    glm::vec3 velocity {0.0f};
+
+    // execute the first rule
+    if (first_rule_neighbor_count > 0) {
+        perceived_center /= float(first_rule_neighbor_count);
+        velocity += (perceived_center - current_position) * rule1Scale;
+    }
+
+    // execute the second rule
+    velocity += c * rule2Scale;
+
+    // execute the third rule
+    if (third_rule_neighbor_count > 0) {
+        perceived_velocity /= float(third_rule_neighbor_count);
+        velocity += perceived_velocity * rule3Scale;
+    }
+
+    // return the output velocity
+    return velocity;
+
   return glm::vec3(0.0f, 0.0f, 0.0f);
 }
 
@@ -245,6 +323,28 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+
+    // compute the thread index
+    const int index {blockIdx.x * blockDim.x + threadIdx.x};
+
+    // avoid execution when the index is out of range
+    if (index >= N) {
+        return;
+    }
+
+    // compute the new velocity
+    glm::vec3 velocity = vel1[index] + computeVelocityChange(
+        N, index, pos, vel1
+    );
+
+    // clamp the new velocity
+    const float length = glm::length(velocity);
+    if (length > maxSpeed) {
+        velocity = velocity / length * maxSpeed;
+    }
+
+    // update the new velocity
+    vel2[index] = velocity;
 }
 
 /**
@@ -349,6 +449,25 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+    
+    // perform the simulation
+    kernUpdateVelocityBruteForce<<<numObjects / blockSize + 1, blockSize>>>(
+        numObjects, dev_pos, dev_vel1, dev_vel2
+    );
+
+    // wait until completion
+    cudaDeviceSynchronize();
+
+    // update the position
+    kernUpdatePos<<<numObjects / blockSize + 1, blockSize>>>(
+        numObjects, dt, dev_pos, dev_vel2
+    );
+
+    // wait until completion
+    cudaDeviceSynchronize();
+
+    // switch the buffers
+    std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
