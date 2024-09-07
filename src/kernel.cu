@@ -52,7 +52,11 @@ void checkCUDAError(const char *msg, int line = -1) {
 #define maxSpeed 1.0f
 
 /*! Size of the starting area in simulation space. */
-#define scene_scale 200.0f
+#define scene_scale 100.0f
+
+#define singleCellWidth 0
+#define doubleCellWidth 0
+#define dynamicCellCheck 1
 
 /***********************************************
 * Kernel state (pointers are device pointers) *
@@ -159,7 +163,7 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
-  gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -430,12 +434,31 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   int rule3NumNeighbor = 0;
 
   // - Identify which cells may contain neighbors. This isn't always 8.
+  glm::ivec3 neighborGridIndex3DMax(0);
+  glm::ivec3 neighborGridIndex3DMin(0);
+  // 27-cell check
+  #if singleCellWidth
+      neighborGridIndex3DMax = thisGridIndex3D + glm::ivec3(1);
+      neighborGridIndex3DMin = thisGridIndex3D - glm::ivec3(1);
+  #endif
+  // 8-cell check
+  #if doubleCellWidth
+      glm::vec3 thisOffset = glm::fract(thisGridPos);
+      int shouldCheckPositiveX = thisOffset.x > 0.5 ? 1 : -1;
+      int shouldCheckPositiveY = thisOffset.y > 0.5 ? 1 : -1;
+      int shouldCheckPositiveZ = thisOffset.z > 0.5 ? 1 : -1;
+      neighborGridIndex3DMax = thisGridIndex3D + glm::ivec3(imax(0, shouldCheckPositiveX), imax(0, shouldCheckPositiveY), imax(0, shouldCheckPositiveZ));
+      neighborGridIndex3DMin = thisGridIndex3D + glm::ivec3(imin(0, shouldCheckPositiveX), imin(0, shouldCheckPositiveY), imin(0, shouldCheckPositiveZ));
+  #endif
   // Grid-Looping Optimization
-  float maxDistance = imax(imax(rule1Distance, rule2Distance), rule3Distance);
-  glm::ivec3 neighborGridIndex3DMax = glm::floor((thisPos + glm::vec3(maxDistance) - gridMin) * inverseCellWidth);
-  glm::ivec3 neighborGridIndex3DMin = glm::floor((thisPos - glm::vec3(maxDistance) - gridMin) * inverseCellWidth);
-  neighborGridIndex3DMax = glm::clamp(neighborGridIndex3DMax, 0, gridResolution - 1);
-  neighborGridIndex3DMin = glm::clamp(neighborGridIndex3DMin, 0, gridResolution - 1);
+  // dynamic check
+      float maxDistance = imax(imax(rule1Distance, rule2Distance), rule3Distance);
+  #if dynamicCellCheck
+      neighborGridIndex3DMax = glm::floor((thisPos + glm::vec3(maxDistance) - gridMin) * inverseCellWidth);
+      neighborGridIndex3DMin = glm::floor((thisPos - glm::vec3(maxDistance) - gridMin) * inverseCellWidth);
+  #endif
+      neighborGridIndex3DMax = glm::clamp(neighborGridIndex3DMax, 0, gridResolution - 1);
+      neighborGridIndex3DMin = glm::clamp(neighborGridIndex3DMin, 0, gridResolution - 1);
 
   for (int z = neighborGridIndex3DMin.z; z <= neighborGridIndex3DMax.z; ++z) {
       for (int y = neighborGridIndex3DMin.y; y <= neighborGridIndex3DMax.y; ++y) {
@@ -517,12 +540,31 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   int rule1NumNeighbor = 0;
   int rule3NumNeighbor = 0;
   // - Identify which cells may contain neighbors. This isn't always 8.
+  glm::ivec3 neighborGridIndex3DMax(0);
+  glm::ivec3 neighborGridIndex3DMin(0);
+  // 27-cell check
+  #if singleCellWidth
+    neighborGridIndex3DMax = thisGridIndex3D + glm::ivec3(1);
+    neighborGridIndex3DMin = thisGridIndex3D - glm::ivec3(1);
+  #endif
+  // 8-cell check
+  #if doubleCellWidth
+    glm::vec3 thisOffset = glm::fract(thisGridPos);
+    int shouldCheckPositiveX = thisOffset.x > 0.5 ? 1 : -1;
+    int shouldCheckPositiveY = thisOffset.y > 0.5 ? 1 : -1;
+    int shouldCheckPositiveZ = thisOffset.z > 0.5 ? 1 : -1;
+    neighborGridIndex3DMax = thisGridIndex3D + glm::ivec3(imax(0, shouldCheckPositiveX), imax(0, shouldCheckPositiveY), imax(0, shouldCheckPositiveZ));
+    neighborGridIndex3DMin = thisGridIndex3D + glm::ivec3(imin(0, shouldCheckPositiveX), imin(0, shouldCheckPositiveY), imin(0, shouldCheckPositiveZ));
+  #endif
   // Grid-Looping Optimization
+  // dynamic check
   float maxDistance = imax(imax(rule1Distance, rule2Distance), rule3Distance);
-  glm::ivec3 neighborGridIndex3DMax = glm::floor((thisPos + glm::vec3(maxDistance) - gridMin) * inverseCellWidth);
-  glm::ivec3 neighborGridIndex3DMin = glm::floor((thisPos - glm::vec3(maxDistance) - gridMin) * inverseCellWidth);
-  neighborGridIndex3DMax = glm::clamp(neighborGridIndex3DMax, 0, gridResolution - 1);
-  neighborGridIndex3DMin = glm::clamp(neighborGridIndex3DMin, 0, gridResolution - 1);
+  #if dynamicCellCheck
+    neighborGridIndex3DMax = glm::floor((thisPos + glm::vec3(maxDistance) - gridMin) * inverseCellWidth);
+    neighborGridIndex3DMin = glm::floor((thisPos - glm::vec3(maxDistance) - gridMin) * inverseCellWidth);
+  #endif
+    neighborGridIndex3DMax = glm::clamp(neighborGridIndex3DMax, 0, gridResolution - 1);
+    neighborGridIndex3DMin = glm::clamp(neighborGridIndex3DMin, 0, gridResolution - 1);
   
     for (int z = neighborGridIndex3DMin.z; z <= neighborGridIndex3DMax.z; ++z) {
       for (int y = neighborGridIndex3DMin.y; y <= neighborGridIndex3DMax.y; ++y) {
