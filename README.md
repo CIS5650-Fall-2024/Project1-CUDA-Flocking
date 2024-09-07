@@ -1,11 +1,34 @@
 **University of Pennsylvania, CIS 5650: GPU Programming and Architecture,
 Project 1 - Flocking**
 
-* (TODO) YOUR NAME HERE
-  * (TODO) [LinkedIn](), [personal website](), [twitter](), etc.
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+## YUHAN LIU
+  * [LinkedIn](https://www.linkedin.com/in/yuhan-liu-/), [personal website](https://liuyuhan.me/)
+  * Tested on: Windows 11 Pro, Ultra 7 155H @ 1.40 GHz 32GB, RTX 4060 8192MB (Personal Laptop)
 
-### (TODO: Your README)
+<p>
+<img src="https://github.com/yuhanliu-tech/GPU-CUDA-Flocking/blob/main/images/screenshot.png" width="500"/>
+<em>Screenshot of Boids simulation with 100,000 particles.</em>
+</p>
 
-Include screenshots, analysis, etc. (Remember, this is public, so don't put
-anything here that you don't want to share with the world.)
+## Performance Analysis
+
+For each implementation, how does changing the number of boids affect performance? Why do you think this is?
+* 
+
+<img src="https://github.com/yuhanliu-tech/GPU-CUDA-Flocking/blob/main/images/FPS_boidnum.png" width="1000"/>
+
+For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
+* 
+
+<img src="https://github.com/yuhanliu-tech/GPU-CUDA-Flocking/blob/main/images/FPS_blocksize.png" width="500"/>
+
+For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+* 
+
+Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
+* 
+
+<p>
+<img src="https://github.com/yuhanliu-tech/GPU-CUDA-Flocking/blob/main/images/gif.gif" width="500"/>
+<em>GIF of Boids simulation with 10,000 particles.</em>
+</p>
