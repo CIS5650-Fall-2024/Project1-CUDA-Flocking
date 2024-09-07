@@ -10,6 +10,7 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 #include "kernel.h"
+#include <fstream>
 
 // ================
 // Configuration
@@ -17,8 +18,10 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+// Extra Credit 1
+#define COHERENT_GRID_LOOP 1
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
 const int N_FOR_VIS = 5000;
@@ -199,13 +202,15 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
     // execute the kernel
-    #if UNIFORM_GRID && COHERENT_GRID
+#if UNIFORM_GRID && COHERENT_GRID
     Boids::stepSimulationCoherentGrid(DT);
-    #elif UNIFORM_GRID
+#elif UNIFORM_GRID
     Boids::stepSimulationScatteredGrid(DT);
-    #else
+#elif COHERENT_GRID_LOOP
+    Boids::stepSimulationCoherentGridLoop(DT);
+#else
     Boids::stepSimulationNaive(DT);
-    #endif
+#endif
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
@@ -216,52 +221,73 @@ void initShaders(GLuint * program) {
   }
 
   void mainLoop() {
-    double fps = 0;
-    double timebase = 0;
-    int frame = 0;
+      double fps = 0;
+      double timebase = 0;
+      int frame = 0;
 
-    Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
-                       // your CUDA development setup is ready to go.
+      // Variables to track total time and frames for average FPS calculation
+      double totalElapsedTime = 0;
+      int totalFrames = 0;
 
-    while (!glfwWindowShouldClose(window)) {
-      glfwPollEvents();
+      std::ofstream fpsLogFile("fps_log.csv");
+      fpsLogFile << "Time (s), FPS\n";
 
-      frame++;
-      double time = glfwGetTime();
+      double time = 0;
 
-      if (time - timebase > 1.0) {
-        fps = frame / (time - timebase);
-        timebase = time;
-        frame = 0;
+      while (!glfwWindowShouldClose(window) && time <= 121.0) {
+          glfwPollEvents();
+
+          frame++;
+          totalFrames++; // Count total frames
+          time = glfwGetTime();
+
+          if (time - timebase > 1.0) {
+              fps = frame / (time - timebase);
+              totalElapsedTime += (time - timebase); // Add to total elapsed time
+              timebase = time;
+              frame = 0;
+
+              std::cout << static_cast<int>(time) << ", " << fps << std::endl;
+              fpsLogFile << static_cast<int>(time) << ", " << fps << "\n";
+          }
+
+          runCUDA();
+
+          std::ostringstream ss;
+          ss << "[";
+          ss.precision(1);
+          ss << std::fixed << fps;
+          ss << " fps] " << deviceName;
+          glfwSetWindowTitle(window, ss.str().c_str());
+
+          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+#if VISUALIZE
+          glUseProgram(program[PROG_BOID]);
+          glBindVertexArray(boidVAO);
+          glPointSize((GLfloat)pointSize);
+          glDrawElements(GL_POINTS, N_FOR_VIS + 1, GL_UNSIGNED_INT, 0);
+          glPointSize(1.0f);
+
+          glUseProgram(0);
+          glBindVertexArray(0);
+
+          glfwSwapBuffers(window);
+#endif
       }
 
-      runCUDA();
+      // Calculate average FPS
+      double averageFPS = totalFrames / totalElapsedTime;
 
-      std::ostringstream ss;
-      ss << "[";
-      ss.precision(1);
-      ss << std::fixed << fps;
-      ss << " fps] " << deviceName;
-      glfwSetWindowTitle(window, ss.str().c_str());
+      // Output average FPS to console and file
+      std::cout << "Average FPS: " << averageFPS << std::endl;
+      fpsLogFile << "Average FPS: " << averageFPS << "\n";
 
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-      #if VISUALIZE
-      glUseProgram(program[PROG_BOID]);
-      glBindVertexArray(boidVAO);
-      glPointSize((GLfloat)pointSize);
-      glDrawElements(GL_POINTS, N_FOR_VIS + 1, GL_UNSIGNED_INT, 0);
-      glPointSize(1.0f);
-
-      glUseProgram(0);
-      glBindVertexArray(0);
-
-      glfwSwapBuffers(window);
-      #endif
-    }
-    glfwDestroyWindow(window);
-    glfwTerminate();
+      fpsLogFile.close();
+      glfwDestroyWindow(window);
+      glfwTerminate();
   }
+
 
 
   void errorCallback(int error, const char *description) {
