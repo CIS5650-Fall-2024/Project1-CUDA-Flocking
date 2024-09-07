@@ -170,6 +170,18 @@ void Boids::initSimulation(int N) {
   gridMinimum.z -= halfGridWidth;
 
   // TODO-2.1 TODO-2.3 - Allocate additional buffers here.
+  cudaMalloc((void**)&dev_particleArrayIndices, N * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_particleArrayIndices failed!");
+  cudaMalloc((void**)&dev_particleGridIndices, N * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_particleGridIndices failed!");
+  cudaMalloc((void**)&dev_gridCellStartIndices, gridCellCount * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_gridCellStartIndices failed!");
+  cudaMalloc((void**)&dev_gridCellEndIndices, gridCellCount * sizeof(int));
+  checkCUDAErrorWithLine("cudaMalloc dev_gridCellEndIndices failed!");
+
+  dev_thrust_particleArrayIndices = thrust::device_pointer_cast(dev_particleArrayIndices);
+  dev_thrust_particleGridIndices = thrust::device_pointer_cast(dev_particleGridIndices);
+
   cudaDeviceSynchronize();
 }
 
@@ -237,18 +249,15 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 	int neightborCount = 0;
 	for (int i = 0; i < N; i++) {
 		if (i != iSelf && glm::distance(pos[i], pos[iSelf]) < rule1Distance) {
-			// check if neighbor
-			glm::ivec3 neighborCellDiff = pos[i] / cellSize;
-			neighborCellDiff = abs(neighborCellDiff - currCell);
-			if (neighborCellDiff.x <= 1 && neighborCellDiff.y <= 1 && neighborCellDiff.z <= 1) {
-				perceived_center += pos[i];
-				neightborCount++;
-			}
+			perceived_center += pos[i];
+			neightborCount++;
 		}
 	}
-
-	perceived_center /= neightborCount;
-	glm::vec3 rule1 = (perceived_center - pos[iSelf]) * rule1Scale;
+	glm::vec3 rule1(0.f);
+	if (neightborCount > 0) {
+		perceived_center /= neightborCount;
+		rule1 = (perceived_center - pos[iSelf]) * rule1Scale;
+	}
 
   // Rule 2: boids try to stay a distance d away from each other
 	glm::vec3 c = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -263,20 +272,19 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
 	neightborCount = 0;
 	glm::vec3 perceived_velocity = glm::vec3(0.0f, 0.0f, 0.0f);
 	for (int i = 0; i < N; i++) {
-		if (i != iSelf) {
-			// check if neighbor
-			glm::ivec3 neighborCellDiff = pos[i] / cellSize;
-			neighborCellDiff = abs(neighborCellDiff - currCell);
-			if (neighborCellDiff.x <= 1 && neighborCellDiff.y <= 1 && neighborCellDiff.z <= 1) {
-				perceived_velocity += vel[i];
-				neightborCount++;
-			}
+		if (i != iSelf && glm::distance(pos[i], pos[iSelf]) < rule3Distance) {
+			perceived_velocity += vel[i];
+			neightborCount++;
 		}
 	}
-	perceived_velocity /= neightborCount;
-	glm::vec3 rule3 = perceived_velocity * rule3Scale;
 
-  return rule1 + rule2 + rule3;
+	glm::vec3 rule3(0.f);
+	if (neightborCount > 0) {
+		perceived_velocity /= neightborCount;
+		rule3 = perceived_velocity * rule3Scale;
+	}
+
+	return rule1 + rule2 + rule3;
 }
 
 /**
