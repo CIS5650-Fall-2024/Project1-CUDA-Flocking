@@ -425,33 +425,27 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
     // - Identify the grid cell that this particle is in
     glm::vec3 currPos = pos[index];
-    glm::vec3 normalizedPos = (currPos - gridMin) * inverseCellWidth;
-    int x = (int)normalizedPos.x;
-    int y = (int)normalizedPos.y;
-    int z = (int)normalizedPos.z;
 
     // - Identify which cells may contain neighbors. This isn't always 8.
-    // this assumes cellWidth is twice the max radius of influence
-    float halfWidth = cellWidth * 0.5f;
-
+    // Extra Credit
     // set lower/upper bounds on neighboring cell exploration per axis
-    // based on if the radius of influence extends beyond current cell
-    int dzlb = -1, dylb = -1, dxlb = -1;
-    int dzub = 2, dyub = 2, dxub = 2;
-    if (currPos.z - halfWidth >= floorf(currPos.z)) dzlb = 0;
-    if (currPos.y - halfWidth >= floorf(currPos.y)) dylb = 0;
-    if (currPos.x - halfWidth >= floorf(currPos.x)) dxlb = 0;
-    if (currPos.z + halfWidth < floorf(currPos.z + 1.f)) dzub = 1;
-    if (currPos.y + halfWidth < floorf(currPos.y + 1.f)) dyub = 1;
-    if (currPos.x + halfWidth < floorf(currPos.x + 1.f)) dxub = 1;
+    // at minimum it's based on the number of cells that fit in max radius
+    float radiusOfInflu = max(max(rule1Distance, rule2Distance), rule3Distance) * inverseCellWidth;
+    glm::vec3 normalizedPos = (currPos - gridMin) * inverseCellWidth;
+    int dzlb = (int)floorf(normalizedPos.z - radiusOfInflu),
+        dylb = (int)floorf(normalizedPos.y - radiusOfInflu),
+        dxlb = (int)floorf(normalizedPos.x - radiusOfInflu),
+        dzub = (int)floorf(normalizedPos.z + radiusOfInflu) + 1,
+        dyub = (int)floorf(normalizedPos.y + radiusOfInflu) + 1,
+        dxub = (int)floorf(normalizedPos.x + radiusOfInflu) + 1;
 
     // skip out of bounds neighboring cell indices
-    dzlb = imin(imax(z + dzlb, 0), gridResolution - 1);
-    dzub = imin(imax(z + dzub, 0), gridResolution - 1);
-    dylb = imin(imax(y + dylb, 0), gridResolution - 1);
-    dyub = imin(imax(y + dyub, 0), gridResolution - 1);
-    dxlb = imin(imax(x + dxlb, 0), gridResolution - 1);
-    dxub = imin(imax(x + dxub, 0), gridResolution - 1);
+    dzlb = imin(imax(dzlb, 0), gridResolution - 1);
+    dzub = imin(imax(dzub, 0), gridResolution - 1);
+    dylb = imin(imax(dylb, 0), gridResolution - 1);
+    dyub = imin(imax(dyub, 0), gridResolution - 1);
+    dxlb = imin(imax(dxlb, 0), gridResolution - 1);
+    dxub = imin(imax(dxub, 0), gridResolution - 1);
 
     // now guaranteed currX, currY, currZ in bounds
     int currX, currY, currZ, startIndex, endIndex, 
