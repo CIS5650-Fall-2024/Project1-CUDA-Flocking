@@ -123,6 +123,17 @@ __host__ __device__ glm::vec3 generateRandomVec3(float time, int index) {
 /**
 * LOOK-1.2 - This is a basic CUDA kernel.
 * CUDA kernel for generating boids with a specified mass randomly around the star.
+* 
+* Gets calls once in void Boids::initSimulation
+* time = 1
+* N = numObjects = N_FOR_VIS : (constant) represents particle count in the simulation. starter code value of 5000
+* arr = dev_pos : represents the allocated memeory for the positions of the Boids
+* scale = scene_scale : (constant) represents the starting area in the simulation space. starter code value of 100.0f
+* 
+* calling this with 1D grid and 1D block.
+* blockDim starter code value of #define blockSize of (128, 1, 1)
+* gridDim starter code value of (N + blockSize - 1) / blockSize where N == N_FOR_VIS == 5000 and blocksize == #define blockSize 128
+* so gridDim starter code value of (40, 1, 1)
 */
 __global__ void kernGenerateRandomPosArray(int time, int N, glm::vec3 * arr, float scale) {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -227,25 +238,112 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 /**
 * LOOK-1.2 You can use this as a helper for kernUpdateVelocityBruteForce.
 * __device__ code can be called from a __global__ context
-* Compute the new velocity on the body with index `iSelf` due to the `N` boids
+* Compute the change in velocity on the body with index `iSelf` due to the `N` boids
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
-  // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-  // Rule 2: boids try to stay a distance d away from each other
-  // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+
+	// Precomputed squared distances for efficiency
+	const float rule1DistanceSquared = rule1Distance * rule1Distance;
+	const float rule2DistanceSquared = rule2Distance * rule2Distance;
+	const float rule3DistanceSquared = rule3Distance * rule3Distance;
+
+	// Get the position of the current boid
+	const glm::vec3 thisBoidPos = pos[iSelf];
+	// Initialize velocity change of the current boid
+	glm::vec3 thisBoidVelChange(0.0f, 0.0f, 0.0f);
+
+	// Variables for boid rules
+	glm::vec3 perceivedCenter(0.0f, 0.0f, 0.0f);
+	int rule1NeighborCount = 0;
+
+	glm::vec3 separate(0.0f, 0.0f, 0.0f);
+
+	glm::vec3 perceivedVelocity(0.0f, 0.0f, 0.0f);
+	int rule3NeighborCount = 0;
+
+	// Iterate through all boids
+	for (int j = 0; j < N; j++) {
+		// Skip self
+		if (iSelf == j) continue;
+
+		glm::vec3 thatBoidPos = pos[j];
+		glm::vec3 thatBoidVel = vel[j];
+
+		// opting to eliminate the square root operation of glm::distance...
+		// float distance = glm::distance(thisBoidPos, thatBoidPos);
+		// which would make our rule1Distance comparison...
+		// if (distance < rule1Distance)
+		glm::vec3 posDiff = thatBoidPos - thisBoidPos;
+		float distanceSquared = glm::dot(posDiff, posDiff);
+
+		// Rule 1: boids fly towards their local perceived center of mass
+		if (distanceSquared < rule1DistanceSquared)
+		{
+			perceivedCenter += thatBoidPos;
+			rule1NeighborCount++;
+		}
+
+		// Rule 2: boids try to stay a distance d away from each other
+		if (distanceSquared < rule2DistanceSquared)
+		{
+			separate -= posDiff;
+		}
+
+		// Rule 3: boids try to match the speed of surrounding boids
+		if (distanceSquared < rule3DistanceSquared)
+		{
+			perceivedVelocity += thatBoidVel;
+			rule3NeighborCount++;
+		}
+	}
+
+	// Apply Rule 1 behavior
+	if (rule1NeighborCount > 0)
+	{
+		perceivedCenter /= rule1NeighborCount;
+		thisBoidVelChange += (perceivedCenter - thisBoidPos) * rule1Scale;
+	}
+
+	// Apply Rule 2 behavior
+	thisBoidVelChange += separate * rule2Scale;
+
+	// Apply Rule 3 behavior
+	if (rule3NeighborCount > 0)
+	{
+		perceivedVelocity /= rule3NeighborCount;
+		thisBoidVelChange += perceivedVelocity * rule3Scale;
+	}
+
+	return thisBoidVelChange;
 }
 
 /**
 * TODO-1.2 implement basic flocking
 * For each of the `N` bodies, update its position based on its current velocity.
 */
-__global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
-  glm::vec3 *vel1, glm::vec3 *vel2) {
-  // Compute a new velocity based on pos and vel1
-  // Clamp the speed
-  // Record the new velocity into vel2. Question: why NOT vel1?
+__global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2) {
+
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (index >= N) {
+		return;
+	}
+
+	// Compute a new velocity based on pos and vel1
+	glm::vec3 newVelocity = vel1[index] + computeVelocityChange(N, index, pos, vel1);
+
+	// Clamp the speed
+	// instead of doing if (glm::length(newVelocity) > maxSpeed),
+	// i use the following to avoid an unneccesary square root operation at this step
+	float velocityLengthSquared = glm::dot(newVelocity, newVelocity);
+	if (velocityLengthSquared > maxSpeed * maxSpeed)
+	{
+		// normailizes newVelocity by dividing it by its length, then scale to maxSpeed
+		newVelocity = (newVelocity / std::sqrt(velocityLengthSquared)) * maxSpeed;
+	}
+
+	// Record the new velocity into vel2. NOT vel1 because we ping-pong the velocity buffers
+	vel2[index] = newVelocity;
 }
 
 /**
@@ -350,6 +448,27 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+
+    // given as global variables:
+    // glm::vec3 *dev_pos;
+    // glm::vec3* dev_vel1;
+    // glm::vec3* dev_vel2;
+
+	// use the kernels you wrote to step the simulation forward in time
+
+	dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+
+	kernUpdateVelocityBruteForce<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_pos, dev_vel1, dev_vel2);
+
+	kernUpdatePos<<<fullBlocksPerGrid, blockSize>>>(numObjects, dt, dev_pos, dev_vel2);
+
+	checkCUDAErrorWithLine("stepSimulationNaive failed!");
+
+	// Ensure all CUDA operations are complete before swapping velocity buffers
+	cudaDeviceSynchronize();
+
+	// Ping-pong the velocity buffers
+	std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
