@@ -150,7 +150,7 @@ When the visualization is disabled, the FPS remains significantly higher across 
 
 **Please refer to the 'Extra Credit 1' comments in the codebase to review the modifications I have made for this question.**
 
-![Grid Loop Optimization](image%206.png)
+![Grid Loop Optimization](images/image%206.png)
 
 *Result of visualization, block size 128, Grid size = 2 * Max Rule Distance, within 120 seconds.*
 
