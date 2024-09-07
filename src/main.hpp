@@ -71,7 +71,13 @@ void runCUDA(void(*simulation)(float));
 //====================================
 // Benchmarking
 //====================================
-unsigned int benchmarkSecondsPerFrame(unsigned int numBoids, void(*simulation)(float));
+struct BenchmarkTime {  
+    double milliseconds;
+    bool timedOut;
+};
+
+void printBenchmarks();
+BenchmarkTime benchmarkSecondsPerFrame(unsigned int numBoids, void(*simulation)(float));
 
 //====================================
 // Setup/init Stuff
@@ -79,4 +85,5 @@ unsigned int benchmarkSecondsPerFrame(unsigned int numBoids, void(*simulation)(f
 bool init(int argc, char **argv);
 void initVAO();
 void fillOpenGLBuffers(unsigned int numBoids);
+void unregisterOpenGLBuffers();
 void initShaders(GLuint *program);

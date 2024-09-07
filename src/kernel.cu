@@ -148,6 +148,8 @@ void Boids::initSimulation(int N)
   numObjects = N;
   dim3 fullBlocksPerGrid((N + blockSize - 1) / blockSize);
 
+  checkCUDAErrorWithLine("initSimulation failed!");
+
   // LOOK-1.2 - This is basic CUDA memory management and error checking.
   // Don't forget to cudaFree in  Boids::endSimulation.
   cudaMalloc((void **)&dev_pos, N * sizeof(glm::vec3));
@@ -707,6 +709,9 @@ void Boids::endSimulation()
   cudaFree(dev_particleGridIndices);
   cudaFree(dev_gridCellStartIndices);
   cudaFree(dev_gridCellEndIndices);
+
+  cudaFree(dev_posSwp);
+  cudaDeviceSynchronize();
 }
 
 void Boids::unitTest()

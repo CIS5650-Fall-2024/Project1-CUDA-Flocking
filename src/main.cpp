@@ -19,7 +19,7 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 1
+#define UNIFORM_GRID 0
 #define COHERENT_GRID 0
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
@@ -36,25 +36,46 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-  unsigned int numBoids = 5000;
-  fillOpenGLBuffers(numBoids);
-  Boids::initSimulation(numBoids);
+  printBenchmarks();
 
-  void(*simulation)(float);
+  // void(*simulation)(float);
+  // // Pick a kernel
+  // #if UNIFORM_GRID && COHERENT_GRID
+  //   simulation = Boids::stepSimulationCoherentGrid;
+  // #elif UNIFORM_GRID
+  //   simulation = Boids::stepSimulationScatteredGrid;
+  // #else
+  //   simulation = Boids::stepSimulationNaive;
+  // #endif
 
-  // Pick a kernel
-  #if UNIFORM_GRID && COHERENT_GRID
-    simulation = Boids::stepSimulationCoherentGrid;
-  #elif UNIFORM_GRID
-    simulation = Boids::stepSimulationScatteredGrid;
-  #else
-    simulation = Boids::stepSimulationNaive;
-  #endif
+  // Boids::unitTest();
 
-  mainLoop(numBoids, simulation);
-  // benchmarkSecondsPerFrame(numBoids, nullptr);
-  Boids::endSimulation();
+  // Boids::endSimulation();
   return 0;
+}
+
+void printBenchmarks() {
+  std::array<unsigned int, 10> boidCounts = {50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 10000000};
+  std::array<void(*)(float), 3> simulations = {Boids::stepSimulationNaive, Boids::stepSimulationScatteredGrid, Boids::stepSimulationCoherentGrid, };
+  std::array<std::string, 3> simNames = {"Naive", "Scattered", "Coherent"};
+
+  for (unsigned int numBoids : boidCounts) {
+    fillOpenGLBuffers(numBoids);
+    Boids::initSimulation(numBoids);
+    std::cout << numBoids << " ";
+    for (size_t i = 0; i < 3; i++) {
+      if (numBoids > 50000 && i == 0) {
+        std::cout << "N/A ";
+        continue;
+      }
+      BenchmarkTime bench = benchmarkSecondsPerFrame(numBoids, simulations[i]);
+      std::cout << bench.milliseconds * (bench.timedOut ? -1 : 1) << " ";
+    }
+    std::cout << std::endl;
+    Boids::endSimulation();
+    cudaDeviceSynchronize();
+    unregisterOpenGLBuffers();
+  }
 }
 
 //-------------------------------
@@ -162,8 +183,14 @@ void fillOpenGLBuffers(unsigned int numBoids) {
   glBufferData(GL_ARRAY_BUFFER, numBoids * sizeof(glm::vec4), bodies.data(), GL_DYNAMIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, boidVBO_velocities);
   glBufferData(GL_ARRAY_BUFFER, numBoids * sizeof(glm::vec4), bodies.data(), GL_DYNAMIC_DRAW);
-  cudaGLRegisterBufferObject(boidVBO_positions);
-  cudaGLRegisterBufferObject(boidVBO_velocities);
+  auto err = cudaGLRegisterBufferObject(boidVBO_positions);
+  err = cudaGLRegisterBufferObject(boidVBO_velocities);  
+}
+
+void unregisterOpenGLBuffers()
+{
+  cudaGLUnregisterBufferObject(boidVBO_positions);
+  cudaGLUnregisterBufferObject(boidVBO_velocities);
 }
 
 void initShaders(GLuint *program)
@@ -212,40 +239,63 @@ void runCUDA(void(*simulation)(float))
   cudaGLUnmapBufferObject(boidVBO_velocities);
 }
 
-unsigned int benchmarkSecondsPerFrame(unsigned int numBoids, void (*simulation)(float))
+// Gets #microseconds per frame
+// Waits until we have a converged time (variance over the past dequeSize frames is < thresholdVariance)
+// Or until 5 minutes have passed
+BenchmarkTime benchmarkSecondsPerFrame(unsigned int numBoids, void (*simulation)(float))
 {
-  const size_t dequeSize = 1024;
+  const size_t dequeSize = 256;
+  const double thresholdVariance = 1e-5;
+  const double maxRuntime = 120;
 
-  double timebase = 0;
+  double startTime = glfwGetTime();
+  double timebase;
+
   std::deque<double> pastFrames;
-  size_t frame = 0;
 
-  for (; frame < dequeSize; frame++) {
+  double mean = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0) / dequeSize;
+  bool timeOut = false;
+
+  while (!timeOut) {
+    glfwPollEvents();
     timebase = glfwGetTime();
     runCUDA(simulation);
     double time = glfwGetTime();
-    pastFrames.push_back(time - timebase);
-  }
-
-  while (!glfwWindowShouldClose(window)) {
-    timebase = glfwGetTime();
-    runCUDA(simulation);
-    double time = glfwGetTime();
-    pastFrames.push_back(time - timebase);
-    pastFrames.pop_front();
-
-    double mean = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0) / dequeSize;
+    double frameTime = time - timebase;
+    pastFrames.push_back(frameTime);
+    if (pastFrames.size() > dequeSize) {
+      pastFrames.pop_front();
+    }
+    
+    mean = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0) / pastFrames.size();
     double variance = std::accumulate(pastFrames.begin(), pastFrames.end(), 0.0, [=](double acc, double elem) {
       double diff = elem - mean;
       return acc + diff * diff;
-    });
+    }) / (dequeSize - 1);
 
-    std::cout << mean << ", " << variance << std::endl;
+    if (variance < thresholdVariance && pastFrames.size() >= dequeSize) {
+      break;
+    }
+
+    double runningTime = time - startTime;
+    // std::cout << runningTime << std::endl;
+    timeOut = (runningTime > maxRuntime) || glfwWindowShouldClose(window);
+
+    std::ostringstream ss;
+    ss << "ms per frame: ";
+    ss.precision(5);
+    ss << mean * 1000;
+    ss << "\t current variance: ";
+    ss << variance;
+    glfwSetWindowTitle(window, ss.str().c_str());
   }
 
-  glfwDestroyWindow(window);
-  glfwTerminate();
-  return 0;
+  if (glfwWindowShouldClose(window)) {
+    glfwDestroyWindow(window);
+    glfwTerminate();
+  }
+
+  return BenchmarkTime {mean * 1000, timeOut};
 }
 
 void mainLoop(unsigned int numBoids, void(*simulation)(float)) {
