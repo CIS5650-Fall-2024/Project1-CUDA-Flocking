@@ -10,6 +10,7 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 #include "kernel.h"
+#include <numeric>
 
 // ================
 // Configuration
@@ -18,10 +19,10 @@
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
 #define UNIFORM_GRID 1
-#define COHERENT_GRID 1
+#define COHERENT_GRID 0
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 50000;
+// const int N_FOR_VIS = 5000;
 const float DT = 0.2f;
 
 /**
@@ -30,17 +31,14 @@ const float DT = 0.2f;
 int main(int argc, char *argv[])
 {
   projectName = "5650 CUDA Intro: Boids";
+  if (!init(argc, argv)) {
+    return -1;
+  }
 
-  if (init(argc, argv))
-  {
-    mainLoop();
-    Boids::endSimulation();
-    return 0;
-  }
-  else
-  {
-    return 1;
-  }
+  unsigned int numBoids = 5000;
+  mainLoop(numBoids);
+  Boids::endSimulation();
+  return 0;
 }
 
 //-------------------------------
@@ -51,10 +49,9 @@ std::string deviceName;
 GLFWwindow *window;
 
 /**
- * Initialization of CUDA and GLFW.
- */
-bool init(int argc, char **argv)
-{
+* Initialization of CUDA and GLFW.
+*/
+bool init(int argc, char **argv) {
   // Set window title to "Student Name: [SM 2.0] GPU Name"
   cudaDeviceProp deviceProp;
   int gpuDevice = 0;
@@ -111,17 +108,18 @@ bool init(int argc, char **argv)
   }
 
   // Initialize drawing state
-  initVAO();
+  
 
   // Default to device ID 0. If you have more than one GPU and want to test a non-default one,
   // change the device ID.
   cudaGLSetGLDevice(0);
 
-  cudaGLRegisterBufferObject(boidVBO_positions);
-  cudaGLRegisterBufferObject(boidVBO_velocities);
-
+  initVAO();
+  unsigned int numBoids = 5000;
+  
+  fillOpenGLBuffers(numBoids);
   // Initialize N-body simulation
-  Boids::initSimulation(N_FOR_VIS);
+  Boids::initSimulation(numBoids);
 
   updateCamera();
 
@@ -132,48 +130,33 @@ bool init(int argc, char **argv)
   return true;
 }
 
-void initVAO()
-{
-
-  std::unique_ptr<GLfloat[]> bodies{new GLfloat[4 * (N_FOR_VIS)]};
-  std::unique_ptr<GLuint[]> bindices{new GLuint[N_FOR_VIS]};
-
-  glm::vec4 ul(-1.0, -1.0, 1.0, 1.0);
-  glm::vec4 lr(1.0, 1.0, 0.0, 0.0);
-
-  for (int i = 0; i < N_FOR_VIS; i++)
-  {
-    bodies[4 * i + 0] = 0.0f;
-    bodies[4 * i + 1] = 0.0f;
-    bodies[4 * i + 2] = 0.0f;
-    bodies[4 * i + 3] = 1.0f;
-    bindices[i] = i;
-  }
-
+void initVAO() {
   glGenVertexArrays(1, &boidVAO); // Attach everything needed to draw a particle to this
   glGenBuffers(1, &boidVBO_positions);
   glGenBuffers(1, &boidVBO_velocities);
-  glGenBuffers(1, &boidIBO);
 
   glBindVertexArray(boidVAO);
 
   // Bind the positions array to the boidVAO by way of the boidVBO_positions
-  glBindBuffer(GL_ARRAY_BUFFER, boidVBO_positions);                                                // bind the buffer
-  glBufferData(GL_ARRAY_BUFFER, 4 * (N_FOR_VIS) * sizeof(GLfloat), bodies.get(), GL_DYNAMIC_DRAW); // transfer data
+  glBindBuffer(GL_ARRAY_BUFFER, boidVBO_positions); // bind the buffer
 
   glEnableVertexAttribArray(positionLocation);
   glVertexAttribPointer((GLuint)positionLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
   // Bind the velocities array to the boidVAO by way of the boidVBO_velocities
   glBindBuffer(GL_ARRAY_BUFFER, boidVBO_velocities);
-  glBufferData(GL_ARRAY_BUFFER, 4 * (N_FOR_VIS) * sizeof(GLfloat), bodies.get(), GL_DYNAMIC_DRAW);
   glEnableVertexAttribArray(velocitiesLocation);
   glVertexAttribPointer((GLuint)velocitiesLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
+}
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, boidIBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, (N_FOR_VIS) * sizeof(GLuint), bindices.get(), GL_STATIC_DRAW);
-
-  glBindVertexArray(0);
+void fillOpenGLBuffers(unsigned int numBoids) {
+  std::vector<glm::vec4> bodies(numBoids, glm::vec4(0, 0, 0, 1));
+  glBindBuffer(GL_ARRAY_BUFFER, boidVBO_positions);
+  glBufferData(GL_ARRAY_BUFFER, numBoids * sizeof(glm::vec4), bodies.data(), GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, boidVBO_velocities);
+  glBufferData(GL_ARRAY_BUFFER, numBoids * sizeof(glm::vec4), bodies.data(), GL_DYNAMIC_DRAW);
+  cudaGLRegisterBufferObject(boidVBO_positions);
+  cudaGLRegisterBufferObject(boidVBO_velocities);
 }
 
 void initShaders(GLuint *program)
@@ -229,8 +212,7 @@ void runCUDA()
   cudaGLUnmapBufferObject(boidVBO_velocities);
 }
 
-void mainLoop()
-{
+void mainLoop(unsigned int numBoids) {
   double fps = 0;
   double timebase = 0;
   int frame = 0;
@@ -263,12 +245,12 @@ void mainLoop()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-#if VISUALIZE
-    glUseProgram(program[PROG_BOID]);
-    glBindVertexArray(boidVAO);
-    glPointSize((GLfloat)pointSize);
-    glDrawElements(GL_POINTS, N_FOR_VIS + 1, GL_UNSIGNED_INT, 0);
-    glPointSize(1.0f);
+      #if VISUALIZE
+      glUseProgram(program[PROG_BOID]);
+      glBindVertexArray(boidVAO);
+      glPointSize((GLfloat)pointSize);
+      glDrawArrays(GL_POINTS, 0, numBoids);
+      glPointSize(1.0f);
 
     glUseProgram(0);
     glBindVertexArray(0);
