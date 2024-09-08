@@ -54,7 +54,7 @@ Example simulation:
 
 ## Part 2: Performance Analysis
 
-In this section, we compare the performance of the Naive method, the Uniform Gird method, and the Coherent Unifrom Grid method based on framerate.
+In this section, we compare the performance of the **Naive** method, the **Uniform Gird** method, and the **Coherent Unifrom Grid** method based on frame rate.
 
 
 ### 2.0 General Comparative Analysis
