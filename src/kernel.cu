@@ -90,8 +90,6 @@ int *dev_gridCellEndIndices;   // to this cell?
 
 glm::vec3* dev_pos_sorted; 
 glm::vec3* dev_vel1_sorted; 
-thrust::device_ptr<glm::vec3> dev_thrust_pos_sorted;
-thrust::device_ptr<glm::vec3> dev_thrust_vel1_sorted;
 
 // LOOK-2.1 - Grid parameters based on simulation parameters.
 // These are automatically computed for you in Boids::initSimulation
@@ -196,9 +194,6 @@ void Boids::initSimulation(int N) {
 
   dev_thrust_particleArrayIndices = thrust::device_ptr<int>(dev_particleArrayIndices);
   dev_thrust_particleGridIndices = thrust::device_ptr<int>(dev_particleGridIndices);
-
-  dev_thrust_pos_sorted = thrust::device_ptr<glm::vec3>(dev_pos_sorted); 
-  dev_thrust_vel1_sorted = thrust::device_ptr<glm::vec3>(dev_vel1_sorted);
 
   cudaDeviceSynchronize();
 }
