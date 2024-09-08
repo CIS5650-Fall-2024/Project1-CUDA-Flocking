@@ -10,6 +10,10 @@ Project 1 - Flocking**
 <em>Screenshot of Boids simulation with 100,000 particles.</em>
 </p>
 
+## Summary
+
+The following project explores CUDA kernels and implements a flocking simulation based on the Reynolds Boids algorithm. CUDA-based optimizations for this project feature a uniform grid with semi-coherent memory access.
+
 ## Performance Analysis
 
 For each implementation, how does changing the number of boids affect performance? Why do you think this is?
