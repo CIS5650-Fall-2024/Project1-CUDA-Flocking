@@ -557,8 +557,9 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
 				if (gridCellStartIndex == -1 || gridCellEndIndex == -1) continue;
 
-				// including the boid's cell, this leaves us with a potential of 27 cells to check if we are not near an edge of the grid
-				// lets reduce this to max 9 cells
+				// in the case of the defualt configuration where (2.0f * maxDistanceFromBoidPos) == cellWidth:
+				// including the boid's cell, this leaves us with a potential of 27 cells to consider
+				// with the below optimization, we will only consider cells whose closest point to thisBoid's position is less than or equal a distance of maxDistanceFromBoidPos
 
 				bool isThisBoidCell = (x == thisBoid_GridIndex3D.x && y == thisBoid_GridIndex3D.y && z == thisBoid_GridIndex3D.z);
 				if (!isThisBoidCell)
@@ -751,8 +752,9 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 
 				if (gridCellStartIndex == -1 || gridCellEndIndex == -1) continue;
 
-				// including the boid's cell, this leaves us with a potential of 27 cells to check if we are not near an edge of the grid
-				// lets reduce this to max 9 cells
+				// in the case of the defualt configuration where (2.0f * maxDistanceFromBoidPos) == cellWidth:
+				// including the boid's cell, this leaves us with a potential of 27 cells to consider
+				// with the below optimization, we will only consider cells whose closest point to thisBoid's position is less than or equal a distance of maxDistanceFromBoidPos
 
 				bool isThisBoidCell = (x == thisBoid_GridIndex3D.x && y == thisBoid_GridIndex3D.y && z == thisBoid_GridIndex3D.z);
 				if (!isThisBoidCell)
