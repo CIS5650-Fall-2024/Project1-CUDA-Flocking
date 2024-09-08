@@ -414,74 +414,68 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     // - Clamp the speed change before putting the new speed in vel2
     int index = threadIdx.x + (blockIdx.x * blockDim.x);
     if (index < N) {
-        glm::vec3 thisPos = pos[index];
-        glm::vec3 thisVel = vel1[index];
+        glm::vec3 selfPos = pos[index];
+        glm::vec3 gridPos = (selfPos - gridMin) * inverseCellWidth;
+        glm::ivec3 cellIdx = glm::floor(gridPos);
+        glm::vec3 cellOffset = gridPos - glm::vec3(cellIdx);
 
-        // - Identify the grid cell that this particle is in
-        int gridX = static_cast<int>((thisPos.x - gridMin.x) * inverseCellWidth);
-        int gridY = static_cast<int>((thisPos.y - gridMin.y) * inverseCellWidth);
-        int gridZ = static_cast<int>((thisPos.z - gridMin.z) * inverseCellWidth);
-
-        glm::vec3 separationForce(0.0f);
-        glm::vec3 alignmentForce(0.0f);
-        glm::vec3 cohesionForce(0.0f);
+        glm::vec3 newVelocity = vel1[index];
         int neighborCount = 0;
+        glm::vec3 avgVelocity(0);
+        glm::vec3 avgPosition(0);
+        glm::vec3 separationForce(0);
 
-        // - Identify which cells may contain neighbors. This isn't always 8.
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dz = -1; dz <= 1; dz++) {
-                    int neighborX = gridX + dx;
-                    int neighborY = gridY + dy;
-                    int neighborZ = gridZ + dz;
+        glm::ivec3 cellStep(
+            cellOffset.x > 0.5f ? 1 : -1,
+            cellOffset.y > 0.5f ? 1 : -1,
+            cellOffset.z > 0.5f ? 1 : -1
+        );
 
-                    // Skip if outside grid
-                    if (neighborX < 0 || neighborX >= gridResolution ||
-                        neighborY < 0 || neighborY >= gridResolution ||
-                        neighborZ < 0 || neighborZ >= gridResolution) {
+        for (int z = 0; z < 2; z++) {
+            for (int y = 0; y < 2; y++) {
+                for (int x = 0; x < 2; x++) {
+                    glm::ivec3 neighborCell = cellIdx + cellStep * glm::ivec3(x, y, z);
+
+                    if (glm::any(glm::lessThan(neighborCell, glm::ivec3(0))) ||
+                        glm::any(glm::greaterThanEqual(neighborCell, glm::ivec3(gridResolution)))) {
                         continue;
                     }
 
-                    int cellIndex = gridIndex3Dto1D(neighborX, neighborY, neighborZ, gridResolution);
-                    int startIndex = gridCellStartIndices[cellIndex];
-                    int endIndex = gridCellEndIndices[cellIndex];
+                    int flatCellIdx = gridIndex3Dto1D(neighborCell.x, neighborCell.y, neighborCell.z, gridResolution);
 
-                    // Iterate through boids in this cell
-                    for (int i = startIndex; i < endIndex; i++) {
-                        int neighborIndex = particleArrayIndices[i];
-                        if (neighborIndex == index) continue; // Skip self
+                    if (gridCellStartIndices[flatCellIdx] < 0) continue;
 
-                        glm::vec3 neighborPos = pos[neighborIndex];
-                        glm::vec3 neighborVel = vel1[neighborIndex];
-                        glm::vec3 diff = thisPos - neighborPos;
-                        float distance = glm::length(diff);
+                    for (int arrayIdx = gridCellStartIndices[flatCellIdx];
+                        arrayIdx < gridCellEndIndices[flatCellIdx]; arrayIdx++) {
+                        int otherIndex = particleArrayIndices[arrayIdx];
+                        if (otherIndex == index) continue;
 
-                        // Apply rules based on distances
-                        if (distance < rule1Distance) {
-                            separationForce += glm::normalize(diff) / distance;
-                        }
-                        if (distance < rule2Distance) {
-                            alignmentForce += neighborVel;
-                            cohesionForce += neighborPos;
+                        glm::vec3 otherPos = pos[otherIndex];
+                        float dist = glm::distance(selfPos, otherPos);
+
+                        if (dist <= rule1Distance) {
                             neighborCount++;
+                            avgVelocity += vel1[otherIndex];
+                            avgPosition += otherPos;
+
+                            if (dist <= rule2Distance) {
+                                separationForce -= (otherPos - selfPos);
+                            }
                         }
                     }
                 }
             }
         }
-        // Calculate final forces
-        glm::vec3 newVel = thisVel;
+
         if (neighborCount > 0) {
-            separationForce *= rule1Scale;
-            alignmentForce = (alignmentForce / float(neighborCount) - thisVel) * rule2Scale;
-            cohesionForce = ((cohesionForce / float(neighborCount)) - thisPos) * rule3Scale;
-            newVel += separationForce + alignmentForce + cohesionForce;
+            avgPosition /= float(neighborCount);
+            newVelocity += (avgPosition - selfPos) * rule1Scale;
+            newVelocity += (avgVelocity / float(neighborCount)) * rule3Scale;
+            newVelocity += separationForce * rule2Scale;
         }
 
-        // Clamp velocity and store in vel2
-        vel2[index] = glm::clamp(newVel, -maxSpeed, maxSpeed);
+        vel2[index] = glm::clamp(newVelocity, -maxSpeed, maxSpeed);
     }
-
     return;
 }
 
