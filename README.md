@@ -1,3 +1,5 @@
+# Project 1 README
+
 **University of Pennsylvania, CIS 5650: GPU Programming and Architecture,
 Project 1 - Flocking**
 
@@ -7,15 +9,16 @@ Project 1 - Flocking**
   * https://www.linkedin.com/in/daniel-gerhardt-bb012722b/
 * Tested on: Windows 23H2, AMD Ryzen 9 7940HS @ 4GHz 32GB, RTX 4070 8 GB (Personal Laptop)
 
-### Project 1 README
-
 ## Description:
 This project implements a boid simulation. A boid is a "bird-oid", a particle that moves according to 3 rules that are meant to emulate how birds move. The rules are:
 1. cohesion - boids will move towards the center of their surrounding boids
 2. separation - boids will keep a distance from the boids closest to them
 3. alignment - boids will attempt to follow the direction and speed of their surrounding boids
 
-The simulation was implemented in 3 different ways. The first was a naive algorithm that checked each boid against all the others. The second limited the scanning by checking only boids in neighboring grid cells. The third reduced overhead further by doing a coherent search in memory within the neighboring cells.
+The simulation was implemented in 3 different ways. 
+1. a naive algorithm that checked each boid against all the others(labeled naive)
+2. a limited scanning that divides the search space into cells and considers only boids in neighboring grid cells(labeled scattered)
+3. an even further reduced overhead by doing a coherent search in memory within the neighboring cells by reordering the position values of the boids(labeled coherent)
 
 # Screenshots with 5000 boids:
 The following images were taken one minute apart.
