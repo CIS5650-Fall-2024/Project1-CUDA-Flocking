@@ -10,8 +10,6 @@ Project 1 - Flocking**
 - Optimized coherent; number of boids = 10000; block size = 128
 ![](images/Coherent.gif)
 
-![](images/Coherent1.gif)
-
 ### Screenshot 2
 - Optimized coherent; number of boids = 500000; block size = 128
 ![](images/Coherent3.gif)
