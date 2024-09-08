@@ -17,11 +17,11 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS = 60000;
 const float DT = 0.2f;
 
 /**
@@ -119,6 +119,8 @@ bool init(int argc, char **argv) {
   initShaders(program);
 
   glEnable(GL_DEPTH_TEST);
+
+  glfwSwapInterval(0);
 
   return true;
 }
