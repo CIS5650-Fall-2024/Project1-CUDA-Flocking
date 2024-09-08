@@ -9,7 +9,7 @@
 ##### The Naive approach can be understood as the most straightforward approach. For each Boid, it compares all of the other Boids to see if they match the influence rules. But it really wastes time on most of the Boids that are obviously not in the influence range.
 ##### Therefore, to better the preference, the uniform spatial grid is implemented. 
 
-![](images/Boids_Ugrid_neighbor_search_shown.png)
+![](images/BoidsUgridneighborsearchshown.png)
 ### Visualization of Uniform Grid Search and Semi-coherent Grid Search
 **Resolution**: 2560x1440, **Point size**: 4
 
@@ -35,4 +35,13 @@
 ![](images/Block_influence_without_visual.png)
 ##### The block size does not influence the FPS too much if the shared memory is not implemented. Less Block size might not fully utilize the GPU ability, while more blocks will pressure the register and memory leading to the downgrade of the performance and even failure because it cannot host that many blocks. The best block size for 5000 Boids in this project is about 128. However, I believe the number of block sizes should be increased if shared memory is implemented and used to handle the global memory access within the block.
 
+### Different Cells Count Grid Seach
+##### While considering Grid style Search, it is essential to see the influence of grid size also. The all of previous analysis is based on a grid size of 9 cells, with each boid checking the other 8 cells around its own. For testing, the cell with is the neighborhood distance, which it needs to check 27 cells around them. The Boids count is 5000, with a block size of 128, and Uniform Grid Search. The visualization result is shown below:
 
+###### 27 cells Uniform Grid Search with 5000 Particles, Block Size: 128, with average FPS around: 1450FPS
+![](images/uniform_27cells_5000.gif)
+
+###### 8 cells Uniform Grid Search with 5000 Particles, Block Size: 128, with average FPS around: 1300FPS
+![](images/result2.1.gif)
+
+##### The result is quite surprising in that it improves the performance by about 100 to 150 FPS on  Uniform Grid Search with 5000 Particles, Block Size: 128. Previously, I thought 27 cells would be slower simply because there are more cells to check. However, it is actually faster. I think as the grid is split into more detailed or fragmented pieces, the check will be more accurate because fewer particles per cell reduce the number of unnecessary particle-to-particle checks (There is code to skip empty cells). Once there is a more dense stimulation with more Boids in the same size scene, the improvement starts to disappear and even become a downgrade, because it cause more cells to check as every cell will contain possible influencing boids.
