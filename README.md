@@ -8,52 +8,52 @@ Project 1 - Flocking**
 ##### 1. Flocking Results #####
 The GIFs shown below are flocking effects with 5000, 50000 and 500000 boids!
 
-<div style="text-align: center;">
+<p style="text-align: center;">
 <img src="./images/boid_5000.gif"/>
 <br>
 Figure 1-1: Flocking with 5000 boids
-</div>
+</p>
 
-<div style="text-align: center;">
+<p style="text-align: center;">
 <img src="./images/boid_50000.gif"/>
 <br>
 Figure 1-2: Flocking with 50000 boids
-</div>
+</p>
 
-<div style="text-align: center;">
+<p style="text-align: center;">
 <img src="./images/boid_500000.gif"/>
 <br>
 Figure 1-3: Flocking with 500000 boids
-</div>
+</p>
 
 ##### 2. Performance Analysis #####
 (1) Number of boids
 
 Graph below shows when block size is fixed to 512, how fps changes with number of boids among the three flocking methods.
 
-<div style="text-align: center;">
+<p style="text-align: center;">
 <img src="./images/boids_plot.png"/>
 <br>
 Figure 2-1: FPS vs number of boids
-</div>
+</p>
 
 (2)  Block size
 
 Graph below shows when number of boids is fixed to 5000, how fps changes with block size among the three flocking methods.
-<div style="text-align: center;">
+<p style="text-align: center;">
 <img src="./images/blocksize_plot.png"/>
 <br>
 Figure 2-2: FPS vs block size
-</div>
+</p>
 
 (3) Number of neighbors
 
 Graph below shows when block size is fixed to 512, how fps changes with number of boids when coherent method searches different neighbors.
-<div style="text-align: center;">
+<p style="text-align: center;">
 <img src="./images/neighborsize_plot.png"/>
 <br>
 Figure 2-2: FPS vs neighbor size
-</div>
+</p>
 
 ##### 3. Questions and Reflect #####
 (1) For each implementation, how does changing the number of boids affect performance? Why do you think this is?
