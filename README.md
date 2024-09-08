@@ -21,7 +21,6 @@
 >   + [Personal Website](https://www.michaelmason.xyz/)
 > * Tested on: Windows 11, Ryzen 9 5900HS @ 3.00GHz 16GB, RTX 3080 (Laptop) 8192MB 
 
-<br>
 
 # CUDA Boids
 
