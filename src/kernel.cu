@@ -188,7 +188,7 @@ void Boids::initSimulation(int N) {
   cudaMalloc((void**)&dev_neighbor_grid_idx_group, gridCellCount * sizeof(int));
   checkCUDAErrorWithLine("cudaMalloc neighbor_grid_idx_group failed!");
 
-  cudaMalloc((void**)&dev_all_neighbor, 100 * sizeof(int));
+  cudaMalloc((void**)&dev_all_neighbor, N  * sizeof(int));
   checkCUDAErrorWithLine("cudaMalloc all_neighbor failed!");
 
   cudaDeviceSynchronize();
@@ -460,17 +460,20 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
 
         //find its neighbors's grid index
-        for (int x = -1; x < 1; x++) {
-            for (int y = -1; y < 1; y ++) {
-                for (int z = -1; z < 1; z ++) {
+        for (int x = -1; x <= 1; x++) {
+            for (int y = -1; y <= 1; y++) {
+                for (int z = -1; z <= 1; z++) {
                     glm::vec3 neighbor_range_pos = boid_pos + glm::vec3(x * cellWidth, y * cellWidth, z * cellWidth);
                     glm::vec3 boid_in_grid = floor((neighbor_range_pos - gridMin) * inverseCellWidth);
                     int neighbor_grid_idx = gridIndex3Dto1D(boid_in_grid.x, boid_in_grid.y, boid_in_grid.z, gridResolution);
-                    neighbor_grid_idx_group[neighbor_grid_idx_group_count] = neighbor_grid_idx;
-                    neighbor_grid_idx_group_count++;
+
+                    if (neighbor_grid_idx >= 0 && neighbor_grid_idx < gridResolution * gridResolution * gridResolution) {
+                        neighbor_grid_idx_group[neighbor_grid_idx_group_count++] = neighbor_grid_idx;
+                    }
                 }
             }
         }
+
 
         int neighbor_count = 0;
         for (int n = 0; n < neighbor_grid_idx_group_count; n++) {
