@@ -17,10 +17,9 @@
 
 #define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
 
-#define check27neighbors 0
+//add a flag to check 27 neighbors
+#define check27neighbors 1
 #define check8neighbors 0
-
-#define checkOptimize 1
 
 /**
 * Check for CUDA errors; print and exit if there was a problem.
@@ -165,7 +164,14 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
+//Change the cell width of the uniform grid to be the neighborhood distance
+// Now, 27 neighboring cells will need to be checked for intersection
+#if check27neighbors
+	gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
+#if check8neighbors
   gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -336,8 +342,8 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
     newVel = glm::normalize(newVel) * maxSpeed;
   }
 
-  // Record the new velocity into vel2. Question: why NOT vel1?
-  // ping-pong buffer
+  // Record the new velocity into vel2. 
+  // Question: why NOT vel1? Ans:ping-pong buffer
   vel2[index] = newVel;  
 }
 
@@ -372,6 +378,7 @@ __global__ void kernUpdatePos(int N, float dt, glm::vec3 *pos, glm::vec3 *vel) {
 //          for(x)
 //            for(y)
 //             for(z)? Or some other order?
+// zyx order is the most memory efficient
 __device__ int gridIndex3Dto1D(int x, int y, int z, int gridResolution) {
   return x + y * gridResolution + z * gridResolution * gridResolution;
 }
@@ -479,17 +486,33 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     int iy = glm::floor((currentBoidPos.y - gridMin.y) * inverseCellWidth);
     int iz = glm::floor((currentBoidPos.z - gridMin.z) * inverseCellWidth);
 
-    // - Identify which cells may contain neighbors. This isn't always 8.
-    // check the 3x3x3 cells around the current cell
-    // In z, y, x order
+    glm::vec3 InCellOffset = currentBoidPos * inverseCellWidth - glm::floor(currentBoidPos * inverseCellWidth);
 
+    // check the boid's position in the cell, and decide the search direction
+    glm::vec3 searchStart = {
+        (InCellOffset.x) < 0.5f ? -1 : 0,
+        (InCellOffset.y) < 0.5f ? -1 : 0,
+        (InCellOffset.z) < 0.5f ? -1 : 0
+    };
+
+    glm::vec3 searchEnd = {
+        (InCellOffset.x) < 0.5f ? 0 : 1,
+        (InCellOffset.y) < 0.5f ? 0 : 1,
+        (InCellOffset.z) < 0.5f ? 0 : 1
+    };
+
+// check the 3x3x3 cells around the current cell
+// In z, y, x order
+#if check27neighbors
     for (int z = -1; z <= 1; ++z) {
         for (int y = -1; y <= 1; ++y) {
             for (int x = -1; x <= 1; ++x) {
+#endif
+
 #if check8neighbors
-        for (int z = 0; z <= 1; ++z) {
-            for (int y = 0; y <= 1; ++y) {
-                for (int x = 0; x <= 1; ++x) {
+    for (int z = searchStart.z; z <= searchEnd.z; ++z) {
+        for (int y = searchStart.y; y <= searchEnd.y; ++y) {
+            for (int x = searchStart.x; x <= searchEnd.x; ++x) {
 #endif
                 // Check boundary
                 int idxX = imax(0, imin(ix + x, gridResolution - 1));
@@ -589,7 +612,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     int iy = glm::floor((currentBoidPos.y - gridMin.y) * inverseCellWidth);
     int iz = glm::floor((currentBoidPos.z - gridMin.z) * inverseCellWidth);
 
-    // consider what order the cells should be checked in to maximize the memory benefits of reordering the boids data.
+
     glm::vec3 InCellOffset = currentBoidPos * inverseCellWidth - glm::floor(currentBoidPos * inverseCellWidth);
     
     // check the boid's position in the cell, and decide the search direction
@@ -604,21 +627,14 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         (InCellOffset.y) < 0.5f ? 0 : 1,
         (InCellOffset.z) < 0.5f ? 0 : 1
     };
-
 #if check27neighbors 
-    // - Originally, I use 3x3x3 cells around the current cell
-    // In z, y, x order
     for (int z = -1; z <= 1; ++z) {
         for (int y = -1; y <= 1; ++y) {
             for (int x = -1; x <= 1; ++x) {
 #endif
-#if check8neighbors 
-    for (int z = 0; z <= 1; ++z) {
-        for (int y = 0; y <= 1; ++y) {
-            for (int x = 0; x <= 1; ++x) {
-#endif
-#if checkOptimize 
-    // Now, I use the search direction and range to determine the cells to search
+
+#if check8neighbors
+    //check8neighbors
     for (int z = searchStart.z; z <= searchEnd.z; ++z) {
         for (int y = searchStart.y; y <= searchEnd.y; ++y) {
             for (int x = searchStart.x; x <= searchEnd.x; ++x) {

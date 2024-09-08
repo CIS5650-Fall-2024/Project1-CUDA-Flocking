@@ -48,6 +48,7 @@ Project 1 - Flocking**
   - Coherent Simulation: The coherent grid implementation also shows performance improvements with larger block sizes, but the gains are less dramatic compared to the scattered implementation. This is because memory access is already optimized in the coherent implementation, and block size changes primarily affect parallelism, not memory access.
 
 3. Did you experience any performance improvements with the coherent uniform grid? Was this the outcome you expected? Why or why not?
+Yes. This is expected. Firstly, like in uniform grid we sorted the boids in the grids so that we can check our neighbors by cells. Secondly, cause the most time consuming process is the memory access. In the coherent uniform grid, I sorted the boids data, so I was no longer need to check particleArrayIndices to get index each time in doing the simulation.
 
 ### 27 vs. 8 Neighbor Cells
 | Cells to check | Scattered     | Coherent |
@@ -55,5 +56,9 @@ Project 1 - Flocking**
 |     8          |   2080        |   2140   |
 |     27         |     1520      |   2080   |
 4. Did changing cell width and checking 27 vs. 8 neighboring cells affect performance? Why or why not?
+ checking 27 cells is not always slower simply because there are more cells to examine. The smaller the cell size, the more efficiently boids can be distributed across cells, potentially reducing the number of unnecessary boid checks. Conversely, checking only 8 larger cells could result in more boids being present in those cells, thus increasing the number of comparisons and potentially decreasing performance. ????
 
 ## Extra Credits
+- Grid-Looping Optimization
+  - Dynamic Search Range: The code calculates InCellOffset to determine the search direction based on the boid's position within the grid cell. This dynamically adjusts the search range with searchStart and searchEnd, avoiding hardcoded checks of 8 or 27 neighboring cells
+  - Avoiding Excessive Comparisons: By limiting the search to relevant neighboring cells, the code reduces unnecessary comparisons with corner grid cells, as described in the optimization goal
