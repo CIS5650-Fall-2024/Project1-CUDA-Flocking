@@ -74,7 +74,7 @@ plt.grid(True)
 blocksize_plot_path = os.path.join(output_dir, 'blocksize_plot.png')
 plt.savefig(blocksize_plot_path)
 
-# Plot the Blocksize sheet data with log scale for x-axis
+# Plot the Neighborsize sheet data with log scale for x-axis
 plt.figure(figsize=(10, 6))
 plt.plot(neighborsize_df_clean['Boids'], neighborsize_df_clean['27 Neighbors'], label='27 Neighbors')
 plt.plot(neighborsize_df_clean['Boids'], neighborsize_df_clean['8 Neighbors'], label='8 Neighbors')
