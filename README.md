@@ -1,6 +1,4 @@
-
-
-<div style="background: rgba(100, 150, 223, 0.2); padding: 10px;">
+<!-- <div style="background: rgba(100, 150, 223, 0.2); padding: 10px;">
 <p>
   <b>
     University of Pennsylvania, CIS 5650: GPU Programming and Architecture,
@@ -16,20 +14,36 @@
   </li>
   <li>Tested on: Windows 11, Ryzen 9 5900HS @ 3.00GHz 16GB, RTX 3080 (Laptop) 8192MB</li>
 </ul>
-</div>
+</div> -->
+
+> University of Pennsylvania, CIS 5650: GPU Programming and Architecture, Project 1 - Flocking
+> * Michael Mason
+>   + [Personal Website](https://www.michaelmason.xyz/)
+> * Tested on: Windows 11, Ryzen 9 5900HS @ 3.00GHz 16GB, RTX 3080 (Laptop) 8192MB 
 
 <br>
 
-# CUDA-Boids
+# CUDA Boids
 
-<div style="display: flex; justify-content: space-between; border: solid 2px; padding: 20px">
-  <img src="image1.png" style="width: 200px; margin-right: 10px;" />
-  <img src="image2.png" style="width: 200px; margin-right: 10px;" />
-  <img src="image3.png" style="width: 200px;" />
-</div>
-<br>
+| ![boids](boids5000.gif) | ![boids](boids50000.gif)  | ![boids](boids100000.gif) |
+| :--: | :--: | :--:
+| *5,000 boids* | *50,000 boids* | *100,000 boids*
 
-### TODO:
+<!-- ## Table of Contents
 
-Include screenshots, analysis, etc. (Remember, this is public, so don't put
-anything here that you don't want to share with the world.)
+- [TODO](#todo)
+- [Analysis](#analysis) -->
+
+## ☑️ TODO:
+
+1. Take a screenshot of the boids and use a gif tool like licecap to record an animations of the boids with a fixed camera. Put this at the top of your README.md. Take a look at How to make an attractive GitHub repo.
+2. Add your performance analysis. Graphs to include:
+    - Framerate change with increasing # of boids for naive, scattered uniform grid, and coherent uniform grid (with and without visualization)
+    - Framerate change with increasing block size
+
+## 📃 Analysis
+
+- For each implementation, how does changing the number of boids affect performance? Why do you think this is?
+- For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
+- For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+- Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
