@@ -37,6 +37,7 @@ Graph below shows when block size is fixed to 512, how fps changes with number o
 Figure 2-1: FPS vs number of boids
 </p>
 
+
 (2)  Block size
 
 Graph below shows when number of boids is fixed to 5000, how fps changes with block size among the three flocking methods.
@@ -45,6 +46,7 @@ Graph below shows when number of boids is fixed to 5000, how fps changes with bl
 <br>
 Figure 2-2: FPS vs block size
 </p>
+
 
 (3) Number of neighbors
 
