@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Boids {
-    void initSimulation(int N);
+    void initSimulation(int N, size_t B);
     void stepSimulationNaive(float dt);
     void stepSimulationScatteredGrid(float dt);
     void stepSimulationCoherentGrid(float dt);

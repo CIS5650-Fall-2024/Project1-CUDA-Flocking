@@ -23,7 +23,6 @@ const char *attributeLocations[] = { "Position", "Velocity" };
 GLuint boidVAO = 0;
 GLuint boidVBO_positions = 0;
 GLuint boidVBO_velocities = 0;
-GLuint boidIBO = 0;
 GLuint displayImage;
 GLuint program[2];
 
@@ -67,11 +66,19 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void mousePositionCallback(GLFWwindow* window, double xpos, double ypos);
 void updateCamera();
-void runCUDA();
+void runCUDA(void(*simulation)(float));
+
+//====================================
+// Benchmarking
+//====================================
+void printBenchmarks();
+double benchmarkMsPerFrame(unsigned int numBoids, void(*simulation)(float));
 
 //====================================
 // Setup/init Stuff
 //====================================
 bool init(int argc, char **argv);
 void initVAO();
+void fillAndRegisterOpenGLBuffers(unsigned int numBoids);
+void unregisterOpenGLBuffers();
 void initShaders(GLuint *program);
