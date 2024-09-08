@@ -30,10 +30,10 @@ Project 1 - Flocking**
 #### Graphs
 
 ##### FPS / N With Visualization
-![](images/Image0.gif)
+![](images/Image0.png)
 
 ##### FPS / N Without Visualization
-![](images/Image1.gif)
+![](images/Image1.png)
 
 ##### FPS / Block Size With Visualization
-![](images/Image2.gif)
+![](images/Image2.png)
