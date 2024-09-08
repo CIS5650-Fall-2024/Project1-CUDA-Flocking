@@ -499,6 +499,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
               int neighborCell1D = gridIndex3Dto1D(neighborCell3DWrapped.x, neighborCell3DWrapped.y, neighborCell3DWrapped.z, gridResolution);
               int cellStart = gridCellStartIndices[neighborCell1D];
               int cellEnd = gridCellEndIndices[neighborCell1D];
+              if (cellStart == -1 || cellEnd == -1) continue;
 
               // - Collect pos and vel information from boids in neighboring cells and apply rules
               for (int i = cellStart; i <= cellEnd; ++i) {
@@ -592,6 +593,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
                 int neighborCell1D = gridIndex3Dto1D(neighborCell3DWrapped.x, neighborCell3DWrapped.y, neighborCell3DWrapped.z, gridResolution);
                 int cellStart = gridCellStartIndices[neighborCell1D];
                 int cellEnd = gridCellEndIndices[neighborCell1D];
+                if (cellStart == -1 || cellEnd == -1) continue;
 
                 // - Collect pos and vel information from boids in neighboring cells and apply rules
                 for (int i = cellStart; i <= cellEnd; ++i) {
@@ -727,7 +729,7 @@ void Boids::stepSimulationCoherentGrid(float dt) {
         dev_gridCellStartIndices, dev_gridCellEndIndices);
 
     // - Perform velocity updates using neighbor search
-    kernUpdateVelNeighborSearchCoherent<<<fullBlocksPerGrid, blockSize>>> (numObjects, gridSideCount, gridMinimum,
+    kernUpdateVelNeighborSearchCoherent<<<fullBlocksPerGrid, blockSize>>> (numObjects, gridSideCount, gridMinimum, 
         gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos_sorted, dev_vel1_sorted, dev_vel2);
 
     // - Update positions
