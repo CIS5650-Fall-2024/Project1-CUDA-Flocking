@@ -37,7 +37,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 256
+#define blockSize 128
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
@@ -52,9 +52,9 @@ void checkCUDAError(const char *msg, int line = -1) {
 #define maxSpeed 1.0f
 
 /*! Size of the starting area in simulation space. */
-#define scene_scale 700.0f
+#define scene_scale 100.0f
 
-#define cellSize 15.f
+#define NEIGHBOR_27 1
 /***********************************************
 * Kernel state (pointers are device pointers) *
 ***********************************************/
@@ -160,7 +160,12 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
+#ifdef NEIGHBOR_27
+  gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#else
   gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
+
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -259,7 +264,6 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 * in the `pos` and `vel` arrays.
 */
 __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
-	glm::ivec3 currCell = pos[iSelf] / cellSize;
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
 	glm::vec3 perceived_center = glm::vec3(0.0f, 0.0f, 0.0f);
 	int neightborCount = 0;
@@ -541,6 +545,43 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 	glm::vec3 perceived_velocity = glm::vec3(0.0f, 0.0f, 0.0f);
 	int rule3NeightborCount = 0;
 
+#ifdef NEIGHBOR_27
+	for (int z = -1; z <= 1; ++z)
+	{
+		for (int y = -1; y <= 1; ++y)
+		{
+			for (int x = -1; x <= 1; ++x)
+			{
+				glm::ivec3 neighborIndex3D = gridIndex3D + glm::ivec3(x, y, z);
+				int neighborIndex1D = gridIndex3Dto1D(neighborIndex3D.x, neighborIndex3D.y, neighborIndex3D.z, gridResolution);
+				if (neighborIndex1D < 0 || neighborIndex1D >= gridResolution * gridResolution * gridResolution) continue;
+				int start = gridCellStartIndices[neighborIndex1D];
+				int end = gridCellEndIndices[neighborIndex1D];
+				for (int i = start; i <= end; ++i)
+				{
+					int neightborIdx = i;
+
+					if (glm::distance(pos[neightborIdx], pos[currIdx]) < rule1Distance)
+					{
+						perceived_center += pos[neightborIdx];
+						rule1NeightborCount++;
+					}
+
+					if (glm::distance(pos[neightborIdx], pos[currIdx]) < rule2Distance)
+					{
+						c -= (pos[neightborIdx] - pos[currIdx]);
+					}
+
+					if (glm::distance(pos[neightborIdx], pos[currIdx]) < rule3Distance)
+					{
+						perceived_velocity += vel1[neightborIdx];
+						rule3NeightborCount++;
+					}
+				}
+			}
+		}
+	}
+#else
 	for (int z = 0; z < 2; ++z)
 	{
 		for (int y = 0; y < 2; ++y)
@@ -576,6 +617,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 			}
 		}
 	}
+#endif
 
 	glm::vec3 rule1(0.f);
 	if (rule1NeightborCount > 0)
