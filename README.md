@@ -98,7 +98,7 @@ or GPU warp utilization.
 
 |![](images/blockSize.png)|
 |:--:|
-|*without visualization, boid count = 20, 000, scene scale = 100*|
+|*without visualization, boid count = 20,000, scene scale = 100*|
 
 * For each implementation, how does changing the block count and block size
 affect performance? Why do you think this is?
