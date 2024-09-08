@@ -163,7 +163,15 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
+#if singleCellWidth
   gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
+#if doubleCellWidth
+  gridCellWidth = 2 * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
+#if dynamicCellCheck
+  gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
