@@ -16,13 +16,31 @@
 // ================
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
-#define VISUALIZE 1
-#define UNIFORM_GRID 1
-#define COHERENT_GRID 1
+int VISUALIZE = 1;
+int UNIFORM_GRID = 0;
+int COHERENT_GRID = 0;
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+int N_FOR_VIS = 5000;
 const float DT = 0.2f;
+
+// Log writing code
+#include <iostream>
+#include <fstream>
+
+#define PRINT_FPS 1
+const int PRINT_COUNT = 100;
+float gridCellWidthScale = 2.0f;
+
+#define PRINT_SETUP(vis, uni, coh, n, gcw) std::cout << #vis"=" << vis << ", " << #uni"=" << uni << ", " << #coh"=" << coh << ", " << #n"=" << n << ", " << #gcw"=" << gcw << std::endl
+void updateParams(float vis, float uni, float coh, float n, float gcw) {
+    VISUALIZE = (int)vis; UNIFORM_GRID = (int)uni; COHERENT_GRID = (int)coh; N_FOR_VIS = (int)n; gridCellWidthScale = gcw;
+}
+
+float params[][5] = { 
+    {0, 0, 0, 5000, 2.0f},
+    //{1, 1, 1, 5000, 2.0f},
+};
 
 /**
 * C main function.
@@ -30,6 +48,18 @@ const float DT = 0.2f;
 int main(int argc, char* argv[]) {
   projectName = "5650 CUDA Intro: Boids";
 
+  if (PRINT_FPS) {
+      for (auto param : params) {
+          updateParams(param[0], param[1], param[2], param[3], param[4]);
+          PRINT_SETUP(VISUALIZE, UNIFORM_GRID, COHERENT_GRID, N_FOR_VIS, gridCellWidthScale);
+          if (init(argc, argv)) {
+              glfwSwapInterval(0);
+              mainLoop();
+              Boids::endSimulation();
+          }
+      }
+      return 0;
+  }
   if (init(argc, argv)) {
     glfwSwapInterval(0);
     mainLoop();
@@ -113,7 +143,7 @@ bool init(int argc, char **argv) {
   cudaGLRegisterBufferObject(boidVBO_velocities);
 
   // Initialize N-body simulation
-  Boids::initSimulation(N_FOR_VIS);
+  Boids::initSimulation(N_FOR_VIS, gridCellWidthScale);
 
   updateCamera();
 
@@ -200,17 +230,18 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
     // execute the kernel
-    #if UNIFORM_GRID && COHERENT_GRID
-    Boids::stepSimulationCoherentGrid(DT);
-    #elif UNIFORM_GRID
-    Boids::stepSimulationScatteredGrid(DT);
-    #else
-    Boids::stepSimulationNaive(DT);
-    #endif
+    if (UNIFORM_GRID && COHERENT_GRID) {
+        Boids::stepSimulationCoherentGrid(DT);
+    }
+    else if (UNIFORM_GRID) {
+        Boids::stepSimulationScatteredGrid(DT);
+    }
+    else {
+        Boids::stepSimulationNaive(DT);
+    }
 
-    #if VISUALIZE
-    Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
-    #endif
+    if (VISUALIZE) Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
+
     // unmap buffer object
     cudaGLUnmapBufferObject(boidVBO_positions);
     cudaGLUnmapBufferObject(boidVBO_velocities);
@@ -221,8 +252,19 @@ void initShaders(GLuint * program) {
     double timebase = 0;
     int frame = 0;
 
-    Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
+    //Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
+
+    // Log writing code
+    std::ofstream logFile;
+    int printed_count = 0;
+    if (PRINT_FPS) {
+        logFile.open("FPS_VIS" + std::to_string(VISUALIZE) + 
+            "_UNI" + std::to_string(UNIFORM_GRID) + 
+            "_COH" + std::to_string(COHERENT_GRID) + 
+            "_N" + std::to_string(N_FOR_VIS) + 
+            "_GCW" + std::to_string(gridCellWidthScale) + ".txt");
+    }
 
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
@@ -234,6 +276,12 @@ void initShaders(GLuint * program) {
         fps = frame / (time - timebase);
         timebase = time;
         frame = 0;
+
+        if (PRINT_FPS) {
+            logFile << fps << "\n";
+            printed_count++;
+            if (printed_count == PRINT_COUNT) break;
+        }
       }
 
       runCUDA();
@@ -247,19 +295,23 @@ void initShaders(GLuint * program) {
 
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      #if VISUALIZE
-      glUseProgram(program[PROG_BOID]);
-      glBindVertexArray(boidVAO);
-      glPointSize((GLfloat)pointSize);
-      glDrawElements(GL_POINTS, N_FOR_VIS + 1, GL_UNSIGNED_INT, 0);
-      glPointSize(1.0f);
+      if (VISUALIZE) {
+          glUseProgram(program[PROG_BOID]);
+          glBindVertexArray(boidVAO);
+          glPointSize((GLfloat)pointSize);
+          glDrawElements(GL_POINTS, N_FOR_VIS + 1, GL_UNSIGNED_INT, 0);
+          glPointSize(1.0f);
 
-      glUseProgram(0);
-      glBindVertexArray(0);
+          glUseProgram(0);
+          glBindVertexArray(0);
 
-      glfwSwapBuffers(window);
-      #endif
+          glfwSwapBuffers(window);
+      }
     }
+
+    if (PRINT_FPS)
+        logFile.close();
+
     glfwDestroyWindow(window);
     glfwTerminate();
   }

@@ -138,7 +138,7 @@ __global__ void kernGenerateRandomPosArray(int time, int N, glm::vec3 * arr, flo
 /**
 * Initialize memory, update some globals
 */
-void Boids::initSimulation(int N) {
+void Boids::initSimulation(int N, float gridCellWidthScale) {
   numObjects = N;
   dim3 fullBlocksPerGrid((N + blockSize - 1) / blockSize);
 
@@ -159,7 +159,7 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
-  gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  gridCellWidth = gridCellWidthScale * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -761,6 +761,10 @@ void Boids::endSimulation() {
 
   cudaFree(dev_coherentPos);
   cudaFree(dev_coherentVel);
+
+  cudaDeviceSynchronize();
+
+  cudaDeviceReset();
 }
 
 void Boids::unitTest() {
