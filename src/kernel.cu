@@ -161,7 +161,7 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
-  gridCellWidth =  std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+  gridCellWidth =  2.0f*std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -749,6 +749,8 @@ void Boids::stepSimulationCoherentGrid(float dt) {
     cudaMemcpy(dev_pos, dev_temp_pos, numObjects * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
     cudaMemcpy(dev_vel1, dev_temp_vel1, numObjects * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
 
+    cudaMemset(dev_gridCellStartIndices, -1, gridCellCount * sizeof(int));
+    cudaMemset(dev_gridCellEndIndices, -1, gridCellCount * sizeof(int));
     kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 
     kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, (gridMinimum),
