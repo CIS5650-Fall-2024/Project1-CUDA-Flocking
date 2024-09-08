@@ -23,11 +23,13 @@ This project is based on Craig Reynolds' model for flocking of boids. Boids is a
 
 ## Showcase
 
-<img src="images/naive-100scale-10000boids.gif" height=500 width=500> 
+<img src="pics/showcase0.gif" height=500 width=500> 
 
-<img src="images/coherent-100scale-100000boids.gif" width=500>
+<img src="pics/showcase1.gif" height=500 width=500> 
 
-<img src="images/coherent-100scale-100000boids.gif" width=500>
+<img src="pics/showcase2.gif" height=500 width=500> 
+
+<img src="pics/showcase3.gif" height=500 width=500> 
 
 ## Performance Analysis
 
@@ -44,6 +46,8 @@ This project is based on Craig Reynolds' model for flocking of boids. Boids is a
 | 5,000,000      | 0.0                  | 16.1                    | 25.6                  |
 | 10,000,000      | 0.0                  | 4.0                    | 6.5                  |
 
+<img src="pics/2xRule.jpg" height=550 width=700> 
+
 ### 2. Performance with different # of boids (Gridsize == 1xMaxRuleDistance, No visual)
 
 | Num of boids | Brute force | Scattered Grid | Coherent Grid |
@@ -56,6 +60,8 @@ This project is based on Craig Reynolds' model for flocking of boids. Boids is a
 | 1,000,000    | 0.5         | 640.8          | 791.0         |
 | 5,000,000    | 0           | 45.2           | 65.3          |
 | 10,000,000   | 0           | 11.2           | 18.0          |
+
+<img src="pics/1xRule.jpg" height=550 width=700> 
 
 ### 3. Performance with and without visualization (Gridsize == 2xMaxRuleDistance & Coherent Grid)
 
@@ -70,6 +76,7 @@ This project is based on Craig Reynolds' model for flocking of boids. Boids is a
 | 5,000,000    | 25.6                          | 23.3                       |
 | 10,000,000   | 6.5                           | 6.3                        |
 
+<img src="pics/isvisual.jpg" height=550 width=700> 
 
 ### 4. Performance with different blocksize  (Gridsize == 2xMaxRuleDistance & Coherent Grid)
 
@@ -86,17 +93,30 @@ This project is based on Craig Reynolds' model for flocking of boids. Boids is a
 | 1,024      | 208.8       | 1630.9         | 1652.6        |
 
 
+<img src="pics/blocksize.jpg" height=600 width=700> 
+
 ## Questions
 
 - **For each implementation, how does changing the number of boids affect
 performance? Why do you think this is?**
 
+As the number of boids increases, the total workload for all threads rises, leading to a decrease in FPS. This is expected and aligns with actual results.
+
 - **For each implementation, how does changing the block count and block size
 affect performance? Why do you think this is?**
+
+For Scattered Grid and Coherent Grid methods, block size has no significant impact on FPS.
+However, in the brute force method, FPS initially increases, stabilizes, and then decreases with larger block sizes. I believe larger blocks allow for more efficient memory access, benefiting brute force more due to increased cache utilization, while the memory-optimized methods remain stable due to internal resource redundancy.
 
 - **For the coherent uniform grid: did you experience any performance improvements
 with the more coherent uniform grid? Was this the outcome you expected?
 Why or why not?**
 
+The coherent grid improved performance as expected because more consistent memory layout accelerated memory access.
+
 - **Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
 Why or why not?**
+
+Yes, surprisingly! 
+For boid counts above 100,000, 1x rule distance outperformed 2x. 
+Although more cells were checked, the finer spatial division led to more continuous memory access, improving performance.
