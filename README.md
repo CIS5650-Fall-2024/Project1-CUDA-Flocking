@@ -9,3 +9,7 @@ Project 1 - Flocking**
 
 Include screenshots, analysis, etc. (Remember, this is public, so don't put
 anything here that you don't want to share with the world.)
+
+![image](https://github.com/user-attachments/assets/1bb4bbca-e4dc-4f23-81f4-c84b2219073a)
+
+![image](https://github.com/user-attachments/assets/510544fe-11d9-45e0-b5b8-b587a975e98c)
