@@ -15,13 +15,20 @@
 // Configuration
 // ================
 
+#define FPS_COUNTER 1
+#if FPS_COUNTER
+int frameCount = 0;
+double cudaTotalElapsedTime = 0.f;
+double fpsCuda = 0.0f;
+#endif
+
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
 #define UNIFORM_GRID 1
-#define COHERENT_GRID 0
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 100000;
+const int N_FOR_VIS = 50000;
 const float DT = 0.2f;
 
 /**
@@ -189,7 +196,7 @@ void initShaders(GLuint * program) {
   void runCUDA() {
     // Map OpenGL buffer object for writing from CUDA on a single GPU
     // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not
-    // use this buffer
+    // use this buffer   
 
     float4 *dptr = NULL;
     float *dptrVertPositions = NULL;
@@ -197,6 +204,13 @@ void initShaders(GLuint * program) {
 
     cudaGLMapBufferObject((void**)&dptrVertPositions, boidVBO_positions);
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
+
+#if FPS_COUNTER
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+#endif
 
     // execute the kernel
     #if UNIFORM_GRID && COHERENT_GRID
@@ -206,6 +220,16 @@ void initShaders(GLuint * program) {
     #else
     Boids::stepSimulationNaive(DT);
     #endif
+
+#if FPS_COUNTER
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    ++frameCount;
+    cudaTotalElapsedTime += milliseconds;
+    fpsCuda = 1000.f / milliseconds;
+#endif
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
@@ -217,6 +241,10 @@ void initShaders(GLuint * program) {
 
   void mainLoop() {
     double fps = 0;
+#if FPS_COUNTER
+    double fpsCuda_ = 0;
+    double fpsAvg = 0;
+#endif
     double timebase = 0;
     int frame = 0;
 
@@ -231,6 +259,10 @@ void initShaders(GLuint * program) {
 
       if (time - timebase > 1.0) {
         fps = frame / (time - timebase);
+#if FPS_COUNTER
+        fpsCuda_ = fpsCuda;
+        fpsAvg = (float)frameCount * 1000.f / cudaTotalElapsedTime;
+#endif
         timebase = time;
         frame = 0;
       }
@@ -238,9 +270,13 @@ void initShaders(GLuint * program) {
       runCUDA();
 
       std::ostringstream ss;
-      ss << "[";
+      ss << "[Disp: ";
       ss.precision(1);
       ss << std::fixed << fps;
+#if FPS_COUNTER
+      ss << " fps / CUDA: " << fpsCuda_;
+      ss << " fps / Avg: " << fpsAvg;
+#endif
       ss << " fps] " << deviceName;
       glfwSetWindowTitle(window, ss.str().c_str());
 
