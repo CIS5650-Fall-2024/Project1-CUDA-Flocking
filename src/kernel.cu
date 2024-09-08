@@ -413,35 +413,17 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
 		return;
 	}
 
-	int startIdx = 0;
-	int endIdx = 0;
-	//gridCellStartIndices[0] = 0;
+	int currentGridIndex = particleGridIndices[index];
 
-	for (int i = 0; i < N; i++) {
-		if (i == 0) {
-			// first
-			startIdx = particleGridIndices[i];
-			gridCellStartIndices[startIdx] = i;
-			continue;
-		}
-
-		if (i == N - 1) {
-			// last
-			endIdx = particleGridIndices[i];
-			gridCellEndIndices[endIdx] = i;
-			break;
-		}
-
-		if (particleGridIndices[i] != particleGridIndices[i - 1]) {
-			startIdx = particleGridIndices[i];
-			gridCellStartIndices[startIdx] = i;
-		}
-		if (particleGridIndices[i] != particleGridIndices[i + 1]) {
-			endIdx = particleGridIndices[i];
-			gridCellEndIndices[endIdx] = i;
-		}
+	// Check for the start of a new cell (handles the first element naturally)
+	if (index == 0 || currentGridIndex != particleGridIndices[index - 1]) {
+		gridCellStartIndices[currentGridIndex] = index;
 	}
 
+	// Check for the end of a cell (handles the last element naturally)
+	if (index == N - 1 || currentGridIndex != particleGridIndices[index + 1]) {
+		gridCellEndIndices[currentGridIndex] = index;
+	}
 }
 
 __global__ void kernUpdateVelNeighborSearchScattered(
