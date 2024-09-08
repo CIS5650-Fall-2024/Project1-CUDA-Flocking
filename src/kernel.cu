@@ -18,8 +18,8 @@
 #define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
 
 //add a flag to check 27 neighbors
-#define check27neighbors 1
-#define check8neighbors 0
+#define check27neighbors 0
+#define check8neighbors 1
 
 /**
 * Check for CUDA errors; print and exit if there was a problem.

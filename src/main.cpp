@@ -223,20 +223,12 @@ void initShaders(GLuint * program) {
     // For average fps calculation
     double totalFPS = 0.0;
     int framesCount = 0;
-    // For time control
-    double startTime = glfwGetTime();
-    double runTime = 15.0;
 
     Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
 
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
-      //double currentTime = glfwGetTime();
-      //if (currentTime - startTime >= runTime) {
-      //    glfwSetWindowShouldClose(window, GL_TRUE);
-      //    break;
-      //}
 
       frame++;
       double time = glfwGetTime();
