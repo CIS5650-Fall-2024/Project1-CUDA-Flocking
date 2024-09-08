@@ -41,7 +41,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 #define Use27NeighboringCells 1
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 4
+#define blockSize 128
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
