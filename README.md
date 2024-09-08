@@ -54,7 +54,7 @@ Graph below shows when block size is fixed to 512, how fps changes with number o
 <p style="text-align: center;">
 <img src="./images/neighborsize_plot.png"/>
 <br>
-Figure 2-2: FPS vs neighbor size
+Figure 2-3: FPS vs neighbor size
 </p>
 
 ##### 3. Questions and Reflect #####
