@@ -37,7 +37,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 128
+#define blockSize 32
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
@@ -528,7 +528,8 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   float inverseCellWidth, float cellWidth,
   int *gridCellStartIndices, int *gridCellEndIndices,
   glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *vel2) {
-  // TODO-2.3 - This should be very similar to kernUpdateVelNeighborSearchScattered, except with one less level of indirection.
+  // TODO-2.3 - This should be very similar to kernUpdateVelNeighborSearchScattered,
+  //  except with one less level of indirection.
   // This should expect gridCellStartIndices and gridCellEndIndices to refer
   // directly to pos and vel1.
   // - Identify the grid cell that this particle is in
