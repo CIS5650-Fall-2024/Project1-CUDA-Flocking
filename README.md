@@ -6,7 +6,6 @@ Project 1 - Flocking**
 * Tested on: Windows 11, i9-12900H @ 2.50GHz 16GB, RTX 3070Ti 8GB (Personal)
 
 ### Result
-![](images/naive.gif)
 ### Performance Analysis
 
 ### Q: For each implementation, how does changing the number of boids affect performance? Why do you think this is?
