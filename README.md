@@ -34,7 +34,7 @@ Project 1 - Flocking**
 ![](images/Cells.png)
 - Descriptions:  The dashed lines represent the performance of checking 27 neighbors, and the solid lines represent performance of checking 8 neighbors. As the number of boids get really large, the perfomance of checking 27 neighbors decreases.  The y-axis is the frames per second (FPS), and the x-axis is the number of boids.
 - Number of Boids:  1000, 5000, 10000, 20000, 50000
-- Block size: 126
+- Block size: 128
 - Neighbor check: 8 neighbors, 27 neighbors
 
 ### Answers according to Analysis
