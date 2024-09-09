@@ -17,12 +17,12 @@ Project 1 - Flocking**
 ## Performance Analysis
 
 ### Framerate change with increasing # of boids
+![](images/BlockSize.png)
 - Descriptions: The dashed lines represent the performance without visualization, and the solid lines represent performance with visualization. I chose 1000, 5000, 10000, 20000, and 50000 boids for testing. The y-axis is the frames per second (FPS), and the x-axis is the number of boids. All the performances decreased as the number of boids increased. The Naive simulation is affected the most. And the scattered and coherent have a milder impact.
 ![](images/Boids.png)
 
 ### Framerate change with increasing block size
 ![](images/BlockSize.png)
-![](images/Boids.png)
 - Descriptions: I chose 8, 16, 32, 64, 128, 256 and 512 as block size. As the complexity of naivee simulation is high, even the increased of the block size may not have a big improvement on performance. And the scatted and coherent reach peak performance in 64 and 128 and get stable after that.
 
 ### Answers according to Analysis
