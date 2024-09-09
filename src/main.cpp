@@ -17,12 +17,13 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
 const int N_FOR_VIS = 5000;
 const float DT = 0.2f;
+#define EXECUTION_TIME 60
 
 /**
 * C main function.
@@ -220,7 +221,26 @@ void initShaders(GLuint * program) {
     double timebase = 0;
     int frame = 0;
 
-    Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
+    // For average fps analysis
+    double totalFps = 0;
+    int fpsCount = 0;
+
+    std::cout << "Starting simulation..." << std::endl;
+    std::cout << "====================" << std::endl;
+    std::cout << "Simulation with " << N_FOR_VIS << " boids" << std::endl;
+    std::cout << "Visualization Mode " << VISUALIZE << std::endl;
+
+    if (COHERENT_GRID && UNIFORM_GRID) {
+      std::cout << "Using coherent uniform grid" << std::endl;
+    } else if (UNIFORM_GRID) {
+      std::cout << "Using uniform grid" << std::endl;
+    } else {
+      std::cout << "Using naive method" << std::endl;
+    }
+
+    std::cout << "====================" << std::endl;
+
+    // Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
 
     while (!glfwWindowShouldClose(window)) {
@@ -233,6 +253,14 @@ void initShaders(GLuint * program) {
         fps = frame / (time - timebase);
         timebase = time;
         frame = 0;
+
+        totalFps += fps;
+        fpsCount++;
+
+        // Check if # seconds have passed using fpsCount
+        if (EXECUTION_TIME != -1 && fpsCount >= EXECUTION_TIME) {
+          glfwSetWindowShouldClose(window, GL_TRUE);
+        }
       }
 
       runCUDA();
@@ -259,6 +287,10 @@ void initShaders(GLuint * program) {
       glfwSwapBuffers(window);
       #endif
     }
+
+    double averageFps = totalFps / fpsCount;
+    std::cout << "Average FPS: " << averageFps << " for " << fpsCount << " frames" << std::endl;
+
     glfwDestroyWindow(window);
     glfwTerminate();
   }
