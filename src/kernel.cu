@@ -37,7 +37,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 128
+#define blockSize 128 // Default is 128
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
@@ -429,7 +429,9 @@ __global__ void kernUpdateVelNeighborSearchScattered(
     return;
   }
   
-  int index_pos_vel_self = particleArrayIndices[i];
+  // int index_pos_vel_self = i;
+  int index_pos_vel_self = particleArrayIndices[i]; // Somehow using this line increases the framerates
+
   glm::vec3 index_grid_3d = glm::vec3(
     (pos[index_pos_vel_self].x - gridMin.x) * inverseCellWidth,
     (pos[index_pos_vel_self].y - gridMin.y) * inverseCellWidth,
