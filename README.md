@@ -54,3 +54,34 @@ has a time complexity of $O(n^2)$, so the increasing in $n$ will greatly affect 
 #### Increasing the number of threads per block (blockSize)
 For this test, we will keep the number of boids at 5000 and increase the blockSize to be 32, 64, 128, 256, and 512.
 
+![block_size](images/block_size.png)
+
+Increasing the block size does not have a significant effect on the performance of all three implementations. This may 
+be caused by the fact that these number of threads are sufficient to keep the GPU busy, so increasing the number doesn't 
+have a significant effect on the performance.
+
+#### Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
+For this test, we will keep the number of boids at 5000 and the blockSize at 128. 
+
+|                       |               27 neighboring cells               |              8 neighboring cells               |
+|:---------------------:|:------------------------------------------------:|:----------------------------------------------:|
+| Coherent Uniform Grid | ![coherent_27_cell](images/coherent_27_cell.png) | ![coherent_8_cell](images/coherent_8_cell.png) |
+|     Uniform Grid      |  ![uniform_27_cell](images/uniform_27_cell.png)  |  ![uniform_8_cell](images/uniform_8_cell.png)  |
+
+For a fixed number of boids and blockSize, changing the number of neighboring cells that need to check 
+does not have a significant effect on the performance. In theory, checking 27 neighboring cells should be slower since 
+it involves more neighbor checking, memory access to grid start and end, and distance checking, since the cell width is 
+smaller and more cells can have neighbors. The fact that there isn't a difference in this case may be caused by having 
+not much boid points, causing the grid to be too scarce to have a significant difference between checking 27 and 8 
+neighboring cells.
+
+To further investigate this, we can increase the number of boids to 20000 and keep the blockSize at 128.
+
+|                       |                     27 neighboring cells                     |                    8 neighboring cells                     |
+|:---------------------:|:------------------------------------------------------------:|:----------------------------------------------------------:|
+| Coherent Uniform Grid | ![coherent_27_cell_20000](images/coherent_27_cell_20000.png) | ![coherent_8_cell_20000](images/coherent_8_cell_20000.png) |
+|     Uniform Grid      |  ![uniform_27_cell_20000](images/uniform_27_cell_20000.png)  |  ![uniform_8_cell_20000](images/uniform_8_cell_20000.png)  |
+
+When the number of boids is increased, we can see that checking 27 neighboring cells is much slower than checking 8. 
+This is expected since the number of neighboring cells that need to be checked is increased and more memory accesses 
+are needed.
