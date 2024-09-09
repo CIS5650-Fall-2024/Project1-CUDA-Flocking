@@ -626,9 +626,7 @@ void Boids::stepSimulationScatteredGrid(float dt) {
   kernIdentifyCellStartEnd <<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
   kernUpdateVelNeighborSearchScattered<<<fullBlocksPerGrid, blockSize>>>(numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_particleArrayIndices, dev_pos, dev_vel1, dev_vel2);
   kernUpdatePos<<<fullBlocksPerGrid, blockSize >>>(numObjects, dt, dev_pos, dev_vel2);
-  glm::vec3 *temp = dev_vel1;
-  dev_vel1 = dev_vel2;
-  dev_vel2 = temp;
+  std::swap(dev_vel1,dev_vel2);
 
 }
 
