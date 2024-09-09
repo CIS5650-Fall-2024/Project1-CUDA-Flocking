@@ -26,9 +26,9 @@ rearranging the boids array to be coherent with the grid. Though the time comple
 the uniform grid, the coherent uniform grid is faster as when can see in the performance section. The performance is 
 expected to be better, since we no longer need to access the `particleArrayIndices` to access the position and velocity.
 
-### Performance Analysis
+## Performance Analysis
 
-#### Comparison among the three implementations
+### Comparison among the three implementations
 Using 5000 boids and 128 blockSize, Here are the results:
 
 |                                              |                                                  |                                                    |
@@ -40,7 +40,7 @@ fastest among the three. There is a big performance increase between the naive a
 matches our expectation since the theoretical time complexity is greatly reduced. The increase in performance between 
 the uniform grid and coherent uniform grid is not as significant, but it is still noticeable.
 
-#### Increasing the number of boids
+### Increasing the number of boids
 For this test, we will keep the blockSize at 128 and increase the number of boids to be 5000, 10000, 20000, 25000, 
 and 50000.
 
@@ -52,7 +52,7 @@ of decreasing performance as the number of boids increases. This is expected sin
 increases the number of data points, which requires more computation. The naive method is affected the most because it 
 has a time complexity of $O(n^2)$, so the increasing in $n$ will greatly affect its performance.
 
-#### Increasing the number of threads per block (blockSize)
+### Increasing the number of threads per block (blockSize)
 For this test, we will keep the number of boids at 5000 and increase the blockSize to be 32, 64, 128, 256, and 512.
 
 ![block_size](images/block_size.png)
@@ -61,7 +61,7 @@ Increasing the block size does not have a significant effect on the performance 
 be caused by the fact that these number of threads are sufficient to keep the GPU busy, so increasing the number doesn't 
 have a significant effect on the performance.
 
-#### Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
+### Did changing cell width and checking 27 vs 8 neighboring cells affect performance?
 For this test, we will keep the number of boids at 5000 and the blockSize at 128. 
 
 |                       |               27 neighboring cells               |              8 neighboring cells               |
