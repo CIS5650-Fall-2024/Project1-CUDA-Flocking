@@ -16,12 +16,12 @@
 // ================
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
+#define FPS_PROFILE 1
+#define FPS_PROFILE_SEC 20
 #define VISUALIZE 1
 #define UNIFORM_GRID 1
 #define COHERENT_GRID 1
-
-// LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 100000;
+const int N_FOR_VIS = 100'000;
 const float DT = 0.2f;
 
 /**
@@ -221,6 +221,12 @@ void initShaders(GLuint * program) {
     double timebase = 0;
     int frame = 0;
 
+#if FPS_PROFILE
+    constexpr int fpssize = FPS_PROFILE_SEC;
+    static double fpsvalues[fpssize];
+    static int fpscounter = 0; 
+#endif
+
     Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
 
@@ -234,6 +240,20 @@ void initShaders(GLuint * program) {
         fps = frame / (time - timebase);
         timebase = time;
         frame = 0;
+#if FPS_PROFILE
+        if (fpscounter >= fpssize) {
+          double fpstotal = 0;
+          std::cout << "CAPTURED:" << std::endl;
+          for (int i = 0; i < fpssize; i++) {
+            std::cout << fpsvalues[i] << std::endl;
+            fpstotal += fpsvalues[i]; 
+          }
+          std::cout << "AVERAGE:" << std::endl;
+          std::cout << fpstotal / static_cast<double>(fpssize) << std::endl; 
+          break; 
+        }
+        fpsvalues[fpscounter++] = fps; 
+#endif
       }
 
       runCUDA();

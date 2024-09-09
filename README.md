@@ -21,28 +21,48 @@
 >   + [Personal Website](https://www.michaelmason.xyz/)
 > * Tested on: Windows 11, Ryzen 9 5900HS @ 3.00GHz 16GB, RTX 3080 (Laptop) 8192MB 
 
-
 # CUDA Boids
 
-| ![boids](boids5000.gif) | ![boids](boids50000.gif)  | ![boids](boids100000.gif) |
-| :--: | :--: | :--:
+**This project is a CUDA implementation of a flocking simulation based on the Reynolds Boids algorithm, previewing two levels of optimization: using a uniform grid, and using a uniform grid with semi-coherent memory access. This was done as part of UPenn CIS 5650 (GPU Programming & Architecture).**
+
 | *5,000 boids* | *50,000 boids* | *100,000 boids*
+| :--: | :--: | :--:
+| ![boids](boids5000.gif) | ![boids](boids50000.gif)  | ![boids](boids100000.gif) |
+
+
 
 <!-- ## Table of Contents
 
 - [TODO](#todo)
 - [Analysis](#analysis) -->
 
-## ☑️ TODO:
+## ☑️ Performance Results
 
-1. Take a screenshot of the boids and use a gif tool like licecap to record an animations of the boids with a fixed camera. Put this at the top of your README.md. Take a look at How to make an attractive GitHub repo.
-2. Add your performance analysis. Graphs to include:
-    - Framerate change with increasing # of boids for naive, scattered uniform grid, and coherent uniform grid (with and without visualization)
-    - Framerate change with increasing block size
+#### Method Explanation
 
-## 📃 Analysis
+For all comparisons graphed below, the FPS was recorded over 12 seconds from program start time, then averaged.
 
-- For each implementation, how does changing the number of boids affect performance? Why do you think this is?
-- For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
-- For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
-- Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
+### Boids vs FPS <span style="color: aqua;">*with visualization*</span>
+
+![graph1](boids_vs_fps_with_vis.png)
+
+Note: Block Size was 128. 
+
+### Boids vs FPS <span style="color: crimson">*without visualization*</span>
+
+![graph2](boids_vs_fps_without_vis.png)
+
+Note: Block Size was 128. 
+
+### Block Size vs FPS
+
+![graph3](block_size_vs_fps.png)
+
+Note: Used coherent grid with 100,000 boids, visualization on. 
+
+## 📃 Performance Analysis
+
+#### Q. For each implementation, how does changing the number of boids affect performance? Why do you think this is?
+#### Q. For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
+#### Q. For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+#### Q. Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
