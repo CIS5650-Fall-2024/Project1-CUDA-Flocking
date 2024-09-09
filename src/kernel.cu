@@ -56,6 +56,8 @@ void checkCUDAError(const char *msg, int line = -1) {
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
 
+#define CHECK_ALL_NEIGHBORS 1
+
 /***********************************************
 * Kernel state (pointers are device pointers) *
 ***********************************************/
@@ -161,7 +163,11 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
+#if CHECK_ALL_NEIGHBORS
+  gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#else
   gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -427,11 +433,14 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   glm::ivec3 gridIndex3D = glm::floor(gridIndex3D_f);
 
   // - Identify which cells may contain neighbors. This isn't always 8.
+#if CHECK_ALL_NEIGHBORS
+#else
   glm::ivec3 neighborhoodOffset{
     glm::fract(gridIndex3D_f.x) > 0.5 ? 0 : -1,
     glm::fract(gridIndex3D_f.y) > 0.5 ? 0 : -1,
     glm::fract(gridIndex3D_f.z) > 0.5 ? 0 : -1
   };
+#endif
 
   // Initialize necessary variables for the rules
   glm::vec3 cohesionVel{ 0, 0, 0 };
@@ -444,6 +453,17 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   glm::vec3 perceivedVel{ 0, 0, 0 };
   int numNeighborsRule3 = 0;
 
+#if CHECK_ALL_NEIGHBORS
+  for (int dz = -1; dz < 2; ++dz) {
+    int z = gridIndex3D.z + dz;
+    if (z < 0 || z >= gridResolution) { continue; }
+    for (int dy = -1; dy < 2; ++dy) {
+      int y = gridIndex3D.y + dy;
+      if (y < 0 || y >= gridResolution) { continue; }
+      for (int dx = -1; dx < 2; ++dx) {
+        int x = gridIndex3D.x + dx;
+        if (x < 0 || x >= gridResolution) { continue; }
+#else
   for (int dz = 0; dz < 2; ++dz) {
     int z = gridIndex3D.z + dz + neighborhoodOffset.z;
     if (z < 0 || z >= gridResolution) { continue; }
@@ -453,6 +473,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
       for (int dx = 0; dx < 2; ++dx) {
         int x = gridIndex3D.x + dx + neighborhoodOffset.x;
         if (x < 0 || x >= gridResolution) { continue; }
+#endif
         // Inside one of the 8 neighboring cell
         // - For each cell, read the start/end indices in the boid pointer array.
         int cellIndex = gridIndex3Dto1D(x, y, z, gridResolution);
@@ -537,11 +558,14 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   glm::ivec3 gridIndex3D = glm::floor(gridIndex3D_f);
 
   // - Identify which cells may contain neighbors. This isn't always 8.
+#if CHECK_ALL_NEIGHBORS
+#else
   glm::ivec3 neighborhoodOffset{
     glm::fract(gridIndex3D_f.x) > 0.5 ? 0 : -1,
     glm::fract(gridIndex3D_f.y) > 0.5 ? 0 : -1,
     glm::fract(gridIndex3D_f.z) > 0.5 ? 0 : -1
   };
+#endif
 
   // Initialize necessary variables for the rules
   glm::vec3 cohesionVel{ 0, 0, 0 };
@@ -553,6 +577,18 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   glm::vec3 alignmentVel{ 0, 0, 0 };
   glm::vec3 perceivedVel{ 0, 0, 0 };
   int numNeighborsRule3 = 0;
+
+#if CHECK_ALL_NEIGHBORS
+  for (int dz = -1; dz < 2; ++dz) {
+    int z = gridIndex3D.z + dz;
+    if (z < 0 || z >= gridResolution) { continue; }
+    for (int dy = -1; dy < 2; ++dy) {
+      int y = gridIndex3D.y + dy;
+      if (y < 0 || y >= gridResolution) { continue; }
+      for (int dx = -1; dx < 2; ++dx) {
+        int x = gridIndex3D.x + dx;
+        if (x < 0 || x >= gridResolution) { continue; }
+#else
   for (int dz = 0; dz < 2; ++dz) {
     int z = gridIndex3D.z + dz + neighborhoodOffset.z;
     if (z < 0 || z >= gridResolution) { continue; }
@@ -562,6 +598,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
       for (int dx = 0; dx < 2; ++dx) {
         int x = gridIndex3D.x + dx + neighborhoodOffset.x;
         if (x < 0 || x >= gridResolution) { continue; }
+#endif
         // Inside one of the 8 neighboring cell
         // - For each cell, read the start/end indices in the boid pointer array.
         //   DIFFERENCE: For best results, consider what order the cells should be

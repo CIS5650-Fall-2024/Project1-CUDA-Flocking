@@ -562,3 +562,6 @@ xcuserdata
 *.xccheckout
 *.moved-aside
 *.xcuserstate
+*.xlsx
+*.m
+*.asv

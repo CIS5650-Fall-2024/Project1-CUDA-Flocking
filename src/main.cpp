@@ -15,11 +15,9 @@
 // Configuration
 // ================
 
-#define FPS_COUNTER 1
-#if FPS_COUNTER
-int frameCount = 0;
-double cudaTotalElapsedTime = 0.f;
-double fpsCuda = 0.0f;
+#define PROFILE 1
+#if PROFILE
+#define T 15
 #endif
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
@@ -28,7 +26,7 @@ double fpsCuda = 0.0f;
 #define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 50000;
+const int N_FOR_VIS = 40000;
 const float DT = 0.2f;
 
 /**
@@ -205,13 +203,6 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertPositions, boidVBO_positions);
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
-#if FPS_COUNTER
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
-#endif
-
     // execute the kernel
     #if UNIFORM_GRID && COHERENT_GRID
     Boids::stepSimulationCoherentGrid(DT);
@@ -220,16 +211,6 @@ void initShaders(GLuint * program) {
     #else
     Boids::stepSimulationNaive(DT);
     #endif
-
-#if FPS_COUNTER
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    ++frameCount;
-    cudaTotalElapsedTime += milliseconds;
-    fpsCuda = 1000.f / milliseconds;
-#endif
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
@@ -241,12 +222,14 @@ void initShaders(GLuint * program) {
 
   void mainLoop() {
     double fps = 0;
-#if FPS_COUNTER
-    double fpsCuda_ = 0;
-    double fpsAvg = 0;
-#endif
     double timebase = 0;
     int frame = 0;
+#if PROFILE
+    double fpsAvg = 0;
+    int frame_tot = 0;
+    double timebase_ = glfwGetTime();
+    bool timeOut = false;
+#endif
 
     Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
@@ -255,27 +238,37 @@ void initShaders(GLuint * program) {
       glfwPollEvents();
 
       frame++;
+#if PROFILE
+      ++frame_tot;
+#endif
       double time = glfwGetTime();
 
       if (time - timebase > 1.0) {
         fps = frame / (time - timebase);
-#if FPS_COUNTER
-        fpsCuda_ = fpsCuda;
-        fpsAvg = (float)frameCount * 1000.f / cudaTotalElapsedTime;
-#endif
         timebase = time;
         frame = 0;
+#if PROFILE
+        fpsAvg = frame_tot / (time - timebase_);
+#endif
       }
+#if PROFILE
+      if (!timeOut && (time - timebase_) > T) {
+        timeOut = true;
+
+        std::cout << "Average FPS over " << T << "s: ";
+        std::cout.precision(1);
+        std::cout << std::fixed << frame_tot / (time - timebase_);
+      }
+#endif
 
       runCUDA();
 
       std::ostringstream ss;
-      ss << "[Disp: ";
+      ss << "[Current: ";
       ss.precision(1);
       ss << std::fixed << fps;
-#if FPS_COUNTER
-      ss << " fps / CUDA: " << fpsCuda_;
-      ss << " fps / Avg: " << fpsAvg;
+#if PROFILE
+      ss << " fps / Average: " << fpsAvg;
 #endif
       ss << " fps] " << deviceName;
       glfwSetWindowTitle(window, ss.str().c_str());
