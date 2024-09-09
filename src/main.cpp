@@ -17,11 +17,13 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+
+// test: [5000, 10000, 20000, 50000, 100000, 200000, 500000]
+const int N_FOR_VIS = 20000;
 const float DT = 0.2f;
 
 /**
@@ -225,6 +227,7 @@ void initShaders(GLuint * program) {
 
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
+      //if (timebase > 8.0) break;
 
       frame++;
       double time = glfwGetTime();
@@ -244,9 +247,9 @@ void initShaders(GLuint * program) {
       ss << " fps] " << deviceName;
       glfwSetWindowTitle(window, ss.str().c_str());
 
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       #if VISUALIZE
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       glUseProgram(program[PROG_BOID]);
       glBindVertexArray(boidVAO);
       glPointSize((GLfloat)pointSize);
@@ -256,11 +259,13 @@ void initShaders(GLuint * program) {
       glUseProgram(0);
       glBindVertexArray(0);
 
-      glfwSwapBuffers(window);
       #endif
+      glfwSwapBuffers(window);
     }
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    std::cout << "FPS is: " << fps << std::endl;
   }
 
 
