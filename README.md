@@ -9,11 +9,11 @@ Project 1 - Flocking**
 
 In this project, I implement a flocking simulation based on the Reynolds Boids algorithm, along with two levels of optimization: a uniform grid, and a uniform grid with semi-coherent memory access. The flocking simulation uses 3 rules 
 
-Rule 1: Cohesion - boids fly towards perceived center of mass of local neighbors
+Rule 1: Cohesion - boids move towards the perceived center of mass of their neighbors
 
-Rule 2: Separation - boids are directed away from each other if they get too close
+Rule 2: Separation - boids avoid getting to close to their neighbors
 
-Rule 3: Alignment - boids try to match the velocity of their neighbors
+Rule 3: Alignment - boids generally try to move with the same direction and speed as their neighbors
 
 We have three implementations of the algorithm Naive, uniform grid, and coherent grid.
 
@@ -23,6 +23,10 @@ Uniform Grid: This implementation decreases the amount of boids we have to check
 
 Coherent Grid: This implementation works similary to the uniform grid with the added optimization of sorting the pos and vel arrays this allows a contiguous memory advantage which boosts its performance.
 
-![image](https://github.com/user-attachments/assets/d3629244-95a5-4c00-8fb3-d3069162f97a) ![image](https://github.com/user-attachments/assets/094207bd-2b86-4840-b8af-81e9b4da7d75)
+### Performance Analysis
 
+For each implementation, how does changing the number of boids affect performance? Why do you think this is?
+For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
+For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
 
