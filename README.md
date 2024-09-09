@@ -1,4 +1,4 @@
-Project 0 Getting Started
+Project 1 Flocking
 ====================
 
 **University of Pennsylvania, CIS 5650: GPU Programming and Architecture, Project 0**
