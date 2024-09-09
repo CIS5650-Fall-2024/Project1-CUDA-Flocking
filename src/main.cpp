@@ -17,11 +17,11 @@
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS = 100000;
 const float DT = 0.2f;
 
 /**
@@ -45,6 +45,16 @@ int main(int argc, char* argv[]) {
 
 std::string deviceName;
 GLFWwindow *window;
+
+float curExecTime = 0.0;
+double totalExecTime = 0.0;
+double avgExecTime = 0.0;
+double totalFrames = 0.0;
+double totalFPS = 0.0;
+double avgFPS = 0.0;
+double fpsCount = 0.0;
+
+cudaEvent_t startCUDAEvent, stopCUDAEvent;
 
 /**
 * Initialization of CUDA and GLFW.
@@ -110,6 +120,9 @@ bool init(int argc, char **argv) {
 
   cudaGLRegisterBufferObject(boidVBO_positions);
   cudaGLRegisterBufferObject(boidVBO_velocities);
+
+  cudaEventCreate(&startCUDAEvent);
+  cudaEventCreate(&stopCUDAEvent);
 
   // Initialize N-body simulation
   Boids::initSimulation(N_FOR_VIS);
@@ -198,6 +211,8 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertPositions, boidVBO_positions);
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
+    cudaEventRecord(startCUDAEvent, 0);
+
     // execute the kernel
     #if UNIFORM_GRID && COHERENT_GRID
     Boids::stepSimulationCoherentGrid(DT);
@@ -206,6 +221,10 @@ void initShaders(GLuint * program) {
     #else
     Boids::stepSimulationNaive(DT);
     #endif
+
+    cudaEventRecord(stopCUDAEvent, 0);
+    cudaEventSynchronize(stopCUDAEvent);
+    cudaEventElapsedTime(&curExecTime, startCUDAEvent, stopCUDAEvent);
 
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
@@ -219,8 +238,9 @@ void initShaders(GLuint * program) {
     double fps = 0;
     double timebase = 0;
     int frame = 0;
+    bool reach = false;
 
-    Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
+    //Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
 
     while (!glfwWindowShouldClose(window)) {
@@ -233,15 +253,26 @@ void initShaders(GLuint * program) {
         fps = frame / (time - timebase);
         timebase = time;
         frame = 0;
+        totalFPS += fps;
+        fpsCount++;
+        avgFPS = totalFPS / fpsCount;
       }
 
       runCUDA();
 
+      totalExecTime += curExecTime;
+      totalFrames++;
+      avgExecTime = totalExecTime / totalFrames;
+
       std::ostringstream ss;
       ss << "[";
-      ss.precision(1);
-      ss << std::fixed << fps;
-      ss << " fps] " << deviceName;
+      ss.precision(2);
+      ss << std::fixed << fps << " fps, ";
+      ss.precision(2);
+      ss << std::fixed << avgFPS << " avgFPS, ";
+      ss.precision(2);
+      ss << std::fixed << avgExecTime << " avgExecTime, ";
+      ss << N_FOR_VIS << " boids] " << deviceName;
       glfwSetWindowTitle(window, ss.str().c_str());
 
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -258,6 +289,12 @@ void initShaders(GLuint * program) {
 
       glfwSwapBuffers(window);
       #endif
+
+      if (timebase >= 10 && !reach) {
+          std::cout << "Avg Exec Time for 10s:" << avgExecTime << std::endl;
+          std::cout << "Avg FPS for 10s:" << avgFPS << std::endl;
+          reach = true;
+      }
     }
     glfwDestroyWindow(window);
     glfwTerminate();
