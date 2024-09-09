@@ -15,7 +15,7 @@ Project 1 - Flocking**
 Benchmarking Process:
 - All benchmarks are executed consecutively and only once per trial.
 - Since the benchmarks are run in a sequence, performance results may be influenced by fluctuations in GPU temperature over time.
-- Frame rates of "*Performance v.s. Number of Boids*" are measured based on the ***average* FPS over 30 seconds**, starting after the initial program launch. For "*Performance v.s. Blocksize*" and "*Performance v.s. Number of Neighbors*", the frame rates are measured based on the ***average* FPS over 15 seconds**.
+- Frame rates of "*Performance v.s. Number of Boids*" are measured based on the ***average* FPS over 30 seconds**, starting after the initial program launch. For "*Performance v.s. Blocksize*" and "*Performance v.s. Number of Neighbor Cells & Cell Width*", the frame rates are measured based on the ***average* FPS over 15 seconds**.
 
 ***Notice***: All the axes are in **log scale**.
 
@@ -35,8 +35,8 @@ Benchmarking Process:
 
 From the data above, we can conclude that:
 - **Visualization reduces performance**: For the Uniform/Coherent Grid implementations, enabling visualization results in an average frame rate reduction of approximately 40%. For the Naive implementation, the impact is more variable, with greater fluctuations in frame rates.
-- **Numbers of Boids (#boids) impact FPS**: 
-  1. The naive implementation is more sensitive to the change of #boids. There is a drastical drop in FPS as #boids increases.
+- 
+More analysis are in the *Answers* part.
 
 ### Performance v.s. Blocksize
 
@@ -44,7 +44,7 @@ The benchmarking in this section is performed ***without visualization***.
 
 ![](images/perf_vs_blocksize.png)
 
-### Performance v.s. Number of Neighbors
+### Performance v.s. Number of Neighbor Cells & Cell Width
 
 The benchmarking in this section is performed ***without visualization***.
 
