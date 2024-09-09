@@ -91,7 +91,6 @@ int *dev_gridCellEndIndices;   // to this cell?
 // the position and velocity data to be coherent within cells.
 glm::vec3* dev_coherentPos;
 glm::vec3* dev_coherentVel1;
-//glm::vec3* dev_coherentVel2;
 
 // LOOK-2.1 - Grid parameters based on simulation parameters.
 // These are automatically computed for you in Boids::initSimulation
@@ -806,8 +805,6 @@ void Boids::endSimulation() {
   cudaFree(dev_particleGridIndices);
   cudaFree(dev_particleArrayIndices);
   cudaFree(dev_coherentPos);
-  cudaFree(dev_coherentVel1);
-  //cudaFree(dev_coherentVel2);
 
 }
 

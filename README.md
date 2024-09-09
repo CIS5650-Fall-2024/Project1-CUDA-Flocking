@@ -7,22 +7,35 @@ Project 1 - Flocking**
 
 ## Screenshots
 ### Screenshot 1
-- coherent; number of boids = 10000; block size = 128
+- Coherent simulation; number of boids = 10000; block size = 128
 ![](images/Coherent.gif)
 
 ### Screenshot 2
-- coherent; number of boids = 500000; block size = 128
+- Coherent simulation; number of boids = 500000; block size = 128
 ![](images/Coherent2.gif)
 
 ## Performance Analysis
 
 ### Framerate change with increasing # of boids
 ![](images/BoidsNum.png)
-- Descriptions: The dashed lines represent the performance without visualization, and the solid lines represent performance with visualization. I chose 1000, 5000, 10000, 20000, and 50000 boids for testing. The y-axis is the frames per second (FPS), and the x-axis is the number of boids. All the performances decreased as the number of boids increased. The Naive simulation is affected the most. And the scattered and coherent have a milder impact.
+- Descriptions: The dashed lines represent the performance without visualization, and the solid lines represent performance with visualization. The y-axis is the frames per second (FPS), and the x-axis is the number of boids. All the performances decreased as the number of boids increased. The Naive simulation is affected the most. And the scattered and coherent have a milder impact.
+- Number of Boids: 1000, 5000, 10000, 20000, 50000
+- Block size: 128
+- Neighbor check: 8 neighbors
 
 ### Framerate change with increasing block size
 ![](images/BlockSize.png)
-- Descriptions: I chose 8, 16, 32, 64, 128, 256 and 512 as block size. As the complexity of naivee simulation is high, even the increased of the block size may not have a big improvement on performance. And the scatted and coherent reach peak performance in 64 and 128 and get stable after that.
+- Descriptions:  As the complexity of naive simulation is high, even the increased of the block size may not have a big improvement on performance. The y-axis is the frames per second (FPS), and the x-axis is the block size. And the scatted and coherent reach peak performance in 64 and 128 and get stable after that.
+- Number of Boids: 20000
+- Block size: 8, 16, 32, 64, 128, 256 and 512
+- Neighbor check: 8 neighbors
+
+### Framerate change with 8 vs. 27 neighbors
+![](images/Cells.png)
+- Descriptions:  The dashed lines represent the performance of checking 27 neighbors, and the solid lines represent performance of checking 8 neighbors. As the number of boids get really large, the perfomance of checking 27 neighbors decreases.  The y-axis is the frames per second (FPS), and the x-axis is the number of boids.
+- Number of Boids:  1000, 5000, 10000, 20000, 50000
+- Block size: 126
+- Neighbor check: 8 neighbors, 27 neighbors
 
 ### Answers according to Analysis
 1. For each implementation, how does changing the number of boids affect performance? Why do you think this is?
