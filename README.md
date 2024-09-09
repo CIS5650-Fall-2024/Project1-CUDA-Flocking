@@ -18,7 +18,7 @@ In this project, I implemented a simple flocking simulation based on the [Reynol
 * alignment - boids generally try to move with the same direction and speed as
   their neighbors
 
-These three rules specify a boid's velocity change in a timestep. At every timestep, a boid thus has to look at each of its neighboring boids and compute the velocity change contribution from each of the three rules. Three level of optimizations are implemented to speed up the process
+These three rules specify a boid's velocity change in a timestep. At every timestep, a boid thus has to look at each of its neighboring boids and compute the velocity change contribution from each of the three rules. Three level of optimizations are implemented to speed up the process.
 
 **Naive Neighbor Search**
 
@@ -30,7 +30,7 @@ The space is divided into uniform spatial grid and we use the grid to reduce the
 
 **Coherent Uniform Grid-based Search**
 
-In additional to sorting the boid index, pos and vel arrays are also rearranged to match the sorted order for fast retrieval.
+In additional to sorting the boid index, pos and vel arrays are also rearranged to match the sorted order for fast read/write.
 
 
 
