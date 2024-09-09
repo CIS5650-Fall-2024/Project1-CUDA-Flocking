@@ -5,7 +5,6 @@
 #include <glm/glm.hpp>
 #include "utilityCore.hpp"
 #include "kernel.h"
-#include <unordered_set>
 
 // LOOK-2.1 potentially useful for doing grid-based neighbor search
 #ifndef imax
@@ -395,13 +394,13 @@ __global__ void kernComputeIndices(int N, int gridResolution,
     // - Label each boid with the index of its grid cell.
     // - Set up a parallel array of integer indices as pointers to the actual
     //   boid data in pos and vel1/vel2
-    for (int i = 0; i < N; i++) {
-        glm::vec3 boid_pos = pos[i];
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index < N) {
+        glm::vec3 boid_pos = pos[index];
         glm::vec3 boid_in_grid = floor((boid_pos - gridMin) * inverseCellWidth);
-        gridIndices[i] = gridIndex3Dto1D(boid_in_grid.x, boid_in_grid.y, boid_in_grid.z, gridResolution);
-        indices[i] = i;
+        gridIndices[index] = gridIndex3Dto1D(boid_in_grid.x, boid_in_grid.y, boid_in_grid.z, gridResolution);
+        indices[index] = index;
     }
-
 }
 
 // LOOK-2.1 Consider how this could be useful for indicating that a cell
@@ -419,20 +418,17 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
   // Identify the start point of each cell in the gridIndices array.
   // This is basically a parallel unrolling of a loop that goes
   // "this index doesn't match the one before it, must be a new cell!"
-    if (N < 2) return;
-    int a = 0;
-    int b = 1;
-    gridCellStartIndices[particleGridIndices[a]] = a;
-    while (b < N) {
-        if (particleGridIndices[a] != particleGridIndices[b]) {
-            //new cell
-            gridCellEndIndices[particleGridIndices[a]] = a;
-            gridCellStartIndices[particleGridIndices[b]] = b;
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index < N) {
+        int cur_grid_idx = particleGridIndices[index];
+        if (index == 0 || cur_grid_idx != particleGridIndices[index - 1]) {
+            gridCellStartIndices[cur_grid_idx] = index;
         }
-        a++;
-        b++;
+
+        if (index == N - 1 || cur_grid_idx != particleGridIndices[index + 1]) {
+            gridCellEndIndices[cur_grid_idx] = index;
+        }
     }
-    gridCellEndIndices[particleGridIndices[b - 1]] = b - 1;
 }
 
 __global__ void kernUpdateVelNeighborSearchScattered(
@@ -465,7 +461,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
                 for (int z = -1; z <= 1; z++) {
                     glm::vec3 neighbor_range_pos = boid_pos + glm::vec3(x * cellWidth, y * cellWidth, z * cellWidth);
                     glm::vec3 boid_in_grid = floor((neighbor_range_pos - gridMin) * inverseCellWidth);
-                    int neighbor_grid_idx = gridIndex3Dto1D(boid_in_grid.x, boid_in_grid.y, boid_in_grid.z, gridResolution);
+                    int neighbor_grid_idx = gridIndex3Dto1D(static_cast<int>(boid_in_grid.x), static_cast<int>(boid_in_grid.y), static_cast<int>(boid_in_grid.z), gridResolution);
 
                     if (neighbor_grid_idx >= 0 && neighbor_grid_idx < gridResolution * gridResolution * gridResolution) {
                         neighbor_grid_idx_group[neighbor_grid_idx_group_count++] = neighbor_grid_idx;
@@ -473,6 +469,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
                 }
             }
         }
+
 
 
         int neighbor_count = 0;
