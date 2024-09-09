@@ -7,6 +7,12 @@ Project 1 - Flocking**
 
 ### Result
 ### Performance Analysis
+Naive Method:
+![](images/naive2.gif)
+Scatter Uniform Method:
+![](images/scatter2.gif)
+Coherent Uniform Method:
+![](images/coherent2.gif)
 
 ### Q: For each implementation, how does changing the number of boids affect performance? Why do you think this is?
 
