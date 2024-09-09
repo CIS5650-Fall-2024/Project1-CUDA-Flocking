@@ -23,10 +23,32 @@ Uniform Grid: This implementation decreases the amount of boids we have to check
 
 Coherent Grid: This implementation works similary to the uniform grid with the added optimization of sorting the pos and vel arrays this allows a contiguous memory advantage which boosts its performance.
 
+ <table>
+  <tr>
+    <td align="center"><b>Naive Flocking</b></td>
+    <td align="center"><b>Uniform Grid-Based Flocking</b></td>
+    <td align="center"><b>Coherent Grid-Based Flocking</b></td>
+  </tr>
+  <tr>
+    <td><img src="images/naive.gif" /></td>
+    <td><img src="images/uniformGrid.gif" /></td>
+    <td><img src="images/coherentGrid.gif" /></td>
+  </tr>
+  <tr>
+    <td colspan="3" align="center"><i>20,000 Boids, Screen Scale 100, 128 Blocks</i></td>
+  </tr>
+</table>
+
 ### Performance Analysis
 
-For each implementation, how does changing the number of boids affect performance? Why do you think this is?
-For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
-For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
-Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
+* For each implementation, how does changing the number of boids affect performance? Why do you think this is?
+<img src="images/boids_V.png" width=500>
+<img src="images/boids_noV.png" width=500>
+
+* For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
+<img src="images/blocksize.png" width=500>
+
+* For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+
+* Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
 
