@@ -12,7 +12,7 @@ Project 1 - Flocking**
 
 ### Screenshot 2
 - Optimized coherent; number of boids = 500000; block size = 128
-![](images/Coherent3.gif)
+![](images/Coherent2.gif)
 
 ## Performance Analysis
 ### Framerate change with increasing # of boids
@@ -25,17 +25,19 @@ Project 1 - Flocking**
 
 ### Answers according to Analysis
 1. For each implementation, how does changing the number of boids affect performance? Why do you think this is?
- -  As the number of boids increase, the fps decrease and the performance goes down.
+ -  As the number of boids increases, the FPS decreases, and leads to reduced performance.
  -  Naive simulation:  This is the slowest among the three implementations, and the FPS drops drastically as the number of boids increases. This is because the Naive Simulation requires looping through every single boid, resulting in O(N^2) complexity. As N increases, the speed becomes significantly slower.
- -  Scattered simulation:  By using a uniform grid, we can reduce the number of boids each boid has to check, so the decrease rate is much more mild compared to naive. When the number of boids becomes really big, it can also decrease a lot, since we have the access the unsorted boid data in every single loop.
- -  Coherent simulation: This is an optimized version of the scattered implementation. By sorting the pos and vel arrays, we reduced memory access times, while the number osf boids still affects the performance.
+ -  Scattered simulation:  By using a uniform grid, the number of boids each boid has to check is reduced, so the performance drop is less severe compared to the naive implementation. . However, when the number of boids becomes very large, performance still decreases significantly due to the need to access unsorted boid data during each loop.
+ -  Coherent simulation: This is an optimized version of the scattered implementation. By sorting the position and velocity arrays, memory access times are reduced. Although the number of boids still affects performance, it has the best performance overall, with a slower rate of decline compared to the other two implementations.
 2. For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
- - The low performance at block sizes smaller than 32 is due to not having enough threads to fit into the warp. If the block size is the multiples of 32, the perfomace can run efficiently in parallel. As the block size increases to a certain point like after 64 and 128, the performance stabilizes because the GPU's resources reach their limit. While larger block sizes mean more threads per block, the GPU’s resources like registers and shared memory are limited, so further increasing the block size doesn’t lead to additional performance gains.
- - Naive simulation: As the complexity is high, even the increased of the block size may not have a big improvement on performance.
- - Scattered simulation: The performace reaches a peak at block sizes of 32 and 64, and then stabilizes as the block size continues to increase. Not good as coherent, but much better than naive.
+ - The low performance at block sizes smaller than 32 is due to not having enough threads to fit into the warp. If the block size is the multiples of 32, the perfomace can run efficiently in parallel. As the block size increases to a certain point like after 64 and 128, the performance stabilizes because the GPU's resources reach their limit. While larger block sizes mean more threads per block, the GPU’s resources like registers and shared memory are limited. Therefore, I think the further increasing the block size may not lead to additional performance gains.
+ - Naive simulation: Since this implementation is highly computationally intensive, even the increased of the block size may not have a big improvement on performance.
+ - Scattered simulation: The performace reaches a peak at block sizes of 32 and 64, and then stabilizes as the block size continues to increase. It is not efficient as coherent, but much better than naive.
  - Coherent simulation:  It has the best performance over all simulations. The performance reaches the peak when the block sizes are 64 or 128. After that, it is getting stable as the scattered simulation.
 3. For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
- - Yes. This is expected. Firstly, like in uniform grid we sorted the boids in the grids so that we can check our neighbors by cells. Secondly, cause the most time-consuming process is memory access. In the coherent uniform grid, I sorted the boids data, so I was no longer need to check particleArrayIndices to get index each time in doing the simulation. As the number of Boids increases, the memory access pattern becomes more continuous because the position and velocity data of the Boids have been rearranged in a grid. Therefore, as the number of Boids increases, the performance of the Coherent implementation decreases slower than Scattered. In my analysis screenshot, it shows that when the number of boids is 50000, the decrease rate of scatter is much sharper than coherent.
+ - Yes. This is expected. In the coherent uniform grid, the boids are sorted within the grid cells, which allows us to check neighbors more efficiently. The most time-consuming process in the simulation is memory access. By sorting the boid data, I no longer need to check particleArrayIndices each time during the simulation. As the number of boids increases, the less global memory access pattern becomes more importamt. Therefore, as the number of Boids increases, the performance of the Coherent implementation decreases slower than Scattered. 
+ In my analysis screenshot, it shows that when the number of boids is 50000, the decrease rate of scatter is much sharper than coherent.
 4. Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
- - Checking 27 neighbors: The width of the grid cell is smaller, and the number of Boid within a single grid is smaller. However, due to the need to check 27 neighbors, the amount of calculation and memory access increases, and the performance decreases relatively. This is more obvious when the number of Boid is larger.
-- Check 8 neighbors: The width of the grid cells is large, and each Boid only needs to check 8 neighbors. Although the number of neighbor checks is reduced, there may be more boids within a single grid cell, so performance may not improve significantly in certain cases, especially when boids are densely distributed.
+ - Check 27 neighbors: The width of the grid cell is smaller, and the number of Boid in a grid can be smaller. However, by checking 27 neighbors, the memory access can also increases which cause performance to decrease.
+- Check 8 neighbors: The width of the grid cells is larger, and the number of Boid in a grid can be bigger. However, each boid only needs to check 8 neighbors, so the number of neighbor checks is reduced. 
+- In summary, if the number of boids get really big, check 27 cells  may be slower due to increased memory access and computation. While, when boids are densely distributed, check 8 cells can be slower as each grid cell is larger and contains more boids to process.
