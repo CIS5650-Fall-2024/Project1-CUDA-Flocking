@@ -7,11 +7,11 @@ Project 1 - Flocking**
 
 ## Screenshots
 ### Screenshot 1
-- Optimized coherent; number of boids = 10000; block size = 128
+- coherent; number of boids = 10000; block size = 128
 ![](images/Coherent.gif)
 
 ### Screenshot 2
-- Optimized coherent; number of boids = 500000; block size = 128
+- coherent; number of boids = 500000; block size = 128
 ![](images/Coherent2.gif)
 
 ## Performance Analysis
