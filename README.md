@@ -25,7 +25,7 @@ How does changing block size effect performance?**
 
 <img src = "images/FPSversusBlockSize.png" width="600">
 
-I found that the block sizes I test (32 (2^5) -> 1024(2^10)) made little to no change in FPS performance. This is likely due to even the minimum size filling a warp. Therefore, we can reduce standby compute resources. There was a slight drop off in performance for some of the very last trials (blockSize = 512, 1024) which could be caused by filling the SM memory or using up another resource. 
+I found that the block sizes I tested (32 (2^5) -> 1024(2^10)) made little to no change in FPS performance. This is likely due to even the minimum size filling a warp. Therefore, we can reduce standby compute resources. There was a slight drop off in performance for some of the very last trials (blockSize = 512, 1024) which could be caused by filling the SM memory or using up another resource. 
 
 **Q3:
 Coherent vs Scattered?**
