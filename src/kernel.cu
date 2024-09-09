@@ -38,7 +38,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 *****************/
 
 /*! Block size used for CUDA kernel launch. */
-#define blockSize 128
+#define blockSize 1024
 
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
@@ -50,7 +50,7 @@ void checkCUDAError(const char *msg, int line = -1) {
 #define rule2Scale 0.1f
 #define rule3Scale 0.1f
 
-#define maxSpeed 1.5f
+#define maxSpeed 1.0f
 
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
@@ -442,7 +442,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
     for (int z = imin(gridIdx.z, iZ_next); z <= imax(gridIdx.z, iZ_next); z++) {
       for (int y = imin(gridIdx.y, iY_next); y <= imax(gridIdx.y, iY_next); y++) {
-        for (int x = imin(gridIdx.x, iX_next); x <= imax(gridIdx.x, iY_next); x++) {
+        for (int x = imin(gridIdx.x, iX_next); x <= imax(gridIdx.x, iX_next); x++) {
 
           int currGridIdx = gridIndex3Dto1D(x, y, z, gridResolution);
           if (currGridIdx < 0 || currGridIdx >= pow(gridResolution, 3)) {
@@ -540,8 +540,8 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 
     for (int z = imin(gridIdx.z, iZ_next); z <= imax(gridIdx.z, iZ_next); z++) {
       for (int y = imin(gridIdx.y, iY_next); y <= imax(gridIdx.y, iY_next); y++) {
-        for (int x = imin(gridIdx.x, iX_next); x <= imax(gridIdx.x, iY_next); x++) {
-          
+        for (int x = imin(gridIdx.x, iX_next); x <= imax(gridIdx.x, iX_next); x++) {
+
           int currGridIdx = gridIndex3Dto1D(x, y, z, gridResolution);
           if (currGridIdx < 0 || currGridIdx >= pow(gridResolution, 3)) {
             continue;

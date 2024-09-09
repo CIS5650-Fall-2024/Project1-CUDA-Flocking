@@ -21,7 +21,7 @@
 #define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS = 15000;
 const float DT = 0.2f;
 
 /**
@@ -219,6 +219,7 @@ void initShaders(GLuint * program) {
     double fps = 0;
     double timebase = 0;
     int frame = 0;
+    float overallFPS = 0.0;
 
     Boids::testReshuffle(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
@@ -229,8 +230,18 @@ void initShaders(GLuint * program) {
       frame++;
       double time = glfwGetTime();
 
+
       if (time - timebase > 1.0) {
         fps = frame / (time - timebase);
+
+        if (time > 5 && time < 15.f) {
+          overallFPS += fps;
+          std::cout << floor(time);
+        }
+        else {
+          std::cout << overallFPS / 10.0 << std::endl;
+        }
+
         timebase = time;
         frame = 0;
       }
