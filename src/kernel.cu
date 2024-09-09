@@ -524,11 +524,11 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     glm::vec3 new_vel(0.0f,0.0f,0.0f);
     glm::vec3 perceived_velocity(0.0f,0.0f,0.0f);
     glm::vec3 c(0.0f, 0.0f, 0.0f);
-    for (int x = 0; x < 2; x++)
+    for (int z = 0; z < 2; z++)
     {
         for (int y = 0; y < 2; y++)
         {
-            for (int z = 0; z < 2; z++)
+            for (int x = 0; x < 2; x++)
             {
                 if(x != 0)
                   iX = iX + iX_dir;
@@ -549,13 +549,13 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 
                 for (int i = start_index; i <= end_index; i++)
                 {
-                    if ((pos[i] != pos[index]) && (distance(pos[i], pos[index]) < rule1Distance))
+                    if ((i != index) && (distance(pos[i], pos[index]) < rule1Distance))
                     {
                         perceived_center += pos[i];
                         perceived_velocity += vel1[i];
                         num_neighbours++;
                     }
-                    if ((pos[i] != pos[index]) && (distance(pos[i], pos[index]) < rule2Distance))
+                    if ((i != index) && (distance(pos[i], pos[index]) < rule2Distance))
                     {
                         c -= pos[i] - pos[index];
                     }
@@ -573,7 +573,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
         glm::clamp(new_vel, -maxSpeed, maxSpeed);
 
     }
-    vel2[index] = new_vel;
+     vel2[index] = new_vel;
 }
 
 /**
@@ -632,6 +632,7 @@ __global__ void kernRearrangeBuffers(int N, int *particleArrayIndices, int *part
       vel1_coherent[index] = vel1[i];
     }
   }
+  
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
@@ -650,12 +651,17 @@ void Boids::stepSimulationCoherentGrid(float dt) {
   // - Naively unroll the loop for finding the start and end indices of each
   //   cell's data pointers in the array of boid indices
   kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
+
   // - BIG DIFFERENCE: use the rearranged array index buffer to reshuffle all
   //   the particle data in the simulation array.
   //   CONSIDER WHAT ADDITIONAL BUFFERS YOU NEED
   kernRearrangeBuffers << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices,dev_pos, dev_vel1, dev_pos_coherent, dev_vel1_coherent);
+  //thrust::copy(dev_pos_coherent, dev_pos_coherent + numObjects, dev_pos);
+  //thrust::copy(dev_vel1_coherent, dev_vel1_coherent + numObjects, dev_vel1);
+  cudaError_t err = cudaMemcpy(dev_pos_coherent, dev_pos, numObjects, cudaMemcpyDeviceToDevice);
+  err = cudaMemcpy(dev_vel1_coherent, dev_vel1, numObjects, cudaMemcpyDeviceToDevice);
   // - Perform velocity updates using neighbor search
-  kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos_coherent, dev_vel1_coherent, dev_vel2);
+  kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos, dev_vel1, dev_vel2);
   // - Update positions
   kernUpdatePos<<<fullBlocksPerGrid, blockSize >>>(numObjects, dt, dev_pos, dev_vel2);
   // - Ping-pong buffers as needed. THIS MAY BE DIFFERENT FROM BEFORE.
