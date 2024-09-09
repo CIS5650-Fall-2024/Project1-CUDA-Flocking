@@ -46,10 +46,10 @@ Performance was measured using FPS with visualization of the boids disabled so t
 Notably the naive method could not run the simulation with 200,000 boids and could barely run the simulation with 100,000. Also the scattered grid threw a CUDA error when the block size was 1024, which is why the data is not present.
 
 # Insights:
-Increasing the number of boids causes a decrease in performance. This is likely caused by the increase in kernel processes as the boid count increases, and the larger number of boids that are checked against to complete the simulation requirements. 
+Increasing the number of boids causes a decrease in performance. This is likely caused by the increase in kernel processes as the boid count increases, and the larger number of boids that are checked against to complete the simulation requirements. The visualization does decrease performance but the visualization and no visualition graphs are essentially the same with a marginal average FPS decrease in the former.
 
 Changing block size caused a small decrease in performance. This was unexpected but was likely caused by the memory reads causing other blocks to wait for a block to be swapped out, and the SM handling larger blocks meant less could be run in parrallel.
 
 The coherent uniform grid caused a small performance increase over the scattered grid. The performance difference as boids increased was more apparent between the grid search methods, which makes sense as the optimization is memory based and memory can be more scattered across a larger number of boids. There is also less memory access as one array has been optimized out by the approach.
 
-Changing cell width to check 27 rather than 8 cells increased performance in the coherent grid from 173.5 to 259.5 average FPS, and similarly in the scattered frid from 171.6 to 256.4 average FPS. The increased performance is probably due to a smaller number of boids being in the neighboring cells since they are smaller, so there are expected to be less boids to iterate through.
+Changing cell width to check 27 rather than 8 cells increased performance in the coherent grid from 173.5 to 259.5 average FPS, and similarly in the scattered frid from 171.6 to 256.4 average FPS. The increased performance is probably due to a smaller number of boids being in the neighboring cells since the cells themselves are smaller, so there are expected to be less boids to iterate through.
