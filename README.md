@@ -24,18 +24,19 @@ Benchmarking Process:
 ![](images/perf.png)
 
 
-| # of Boids            	| 1,000  	| 5,000  	| 10,000 	| 50,000 	| 200,000 	| 500,000 	|
-|---------------------- 	|-------:	|-------:	|-------:	|-------:	|--------:	|--------:	|
-| Naïve w/ Viz          	| 1067.1 	| 448.6  	| 220.5  	| 30.5   	| 2.4     	| 0.4     	|
-| Naïve w/o Viz         	| 2165.0 	| 637.2  	| 274.9  	| 36.4   	| 8.3     	| 5.4     	|
-| Uniform Grid w/ Viz   	| 1420.7 	| 1281.8 	| 1211.2 	| 786.6  	| 240.7   	| 71.2    	|
-| Uniform Grid w/o Viz  	| 2221.4 	| 2152.1 	| 1971.5 	| 1291.1 	| 339.2   	| 81.2    	|
-| Coherent Grid w/ Viz  	| 1368.9 	| 1249.5 	| 1367.8 	| 1281.7 	| 620.6   	| 386.2   	|
-| Coherent Grid w/o Viz 	| 2487.0 	| 2173.5 	| 2148.5 	| 2144.1 	| 1202.0  	| 586.5   	|
+| # of Boids                  	| 1,000  	| 5,000  	| 10,000 	| 50,000 	| 200,000 	| 500,000 	|
+|-----------------------------	|-------:	|-------:	|-------:	|-------:	|--------:	|--------:	|
+| Naïve w/ Viz                 	| 1067.1 	| 448.6  	| 220.5  	| 30.5   	| 2.4     	| 0.4     	|
+| Naïve w/o Viz         	      | 2165.0 	| 637.2  	| 274.9  	| 36.4   	| 8.3     	| 5.4     	|
+| Scattered Uniform Grid w/ Viz | 1420.7 	| 1281.8 	| 1211.2 	| 786.6  	| 240.7   	| 71.2    	|
+| Scattered Uniform Grid w/o Viz| 2221.4 	| 2152.1 	| 1971.5 	| 1291.1 	| 339.2   	| 81.2    	|
+| Coherent Uniform Grid w/ Viz  | 1368.9 	| 1249.5 	| 1367.8 	| 1281.7 	| 620.6   	| 386.2   	|
+| Coherent Uniform Grid w/o Viz | 2487.0 	| 2173.5 	| 2148.5 	| 2144.1 	| 1202.0  	| 586.5   	|
 
 From the data above, we can conclude that:
-- **Visualization reduces performance**: For the Uniform/Coherent Grid implementations, enabling visualization results in an average frame rate reduction of approximately 40%. For the Naive implementation, the impact is more variable, with greater fluctuations in frame rates.
-- 
+- **Visualization reduces performance**: For the Scattered/Coherent Uniform Grid implementations, enabling visualization results in an average frame rate reduction of approximately 40%. For the Naive implementation, the impact is more variable, with greater fluctuations in frame rates.
+- **Coherent Uniform Grid has the best performance**: Coherent Uniform Grid achieved the highest overall FPS because of its optimized memory access strategy.
+
 More analysis are in the *Answers* part.
 
 ### Performance v.s. Blocksize
@@ -56,8 +57,8 @@ The benchmarking in this section is performed ***without visualization***.
 ### For each implementation, how does changing the number of boids affect performance? Why do you think this is?
 
 - **Naive Implementation**: As the number of boids increases, performance drops drastically, especially with visualization. For example, performance drops from 1,067.1 (1,000 boids) to 0.4 (500,000 boids) with visualization. This is because the time complexity of the naive implementation is $O(N^2)$, each boid needs to check all the other boids. As the number of boids increases, the number of interactions grows quadratically, heavily impacting performance.
-- **Uniform Grid Implementation**: The Uniform Grid approach shows relatively stable performance with fewer boids, but the performance starts dropping significantly beyond 50,000 boids, especially with visualization. This algorithm spatially partitions the boids into grids, which reduces the number of operations needed. However, as the number of boids grows, memory overhead increases, leading to slower performance at higher boid counts.
-- **Coherent Grid Implementation**: The Coherent Grid maintains the most stable performance as boid counts increase, showing only a gradual decline, even with visualization. The Coherent Grid improves data locality and reduces redundant reads from the slow global memory, making the algorithm more scalable and less sensitive to large numbers of boids.
+- **Scattered Uniform Grid Implementation**: The Scattered Uniform Grid approach shows relatively stable performance with fewer boids, but the performance starts dropping significantly beyond 50,000 boids, especially with visualization. This algorithm spatially partitions the boids into grids, which reduces the number of operations needed. However, as the number of boids grows, memory overhead increases, leading to slower performance at higher boid counts.
+- **Coherent Uniform Grid Implementation**: The Coherent Uniform Grid maintains the most stable performance as boid counts increase, showing only a gradual decline, even with visualization. The Coherent Grid improves data locality and reduces redundant reads from the slow global memory, making the algorithm more scalable and less sensitive to large numbers of boids.
   
 ### For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
 
