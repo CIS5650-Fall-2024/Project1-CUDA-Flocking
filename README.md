@@ -17,9 +17,8 @@ Project 1 - Flocking**
 ## Performance Analysis
 
 ### Framerate change with increasing # of boids
-![](images/BlockSize.png)
+![](images/BoidsNum.png)
 - Descriptions: The dashed lines represent the performance without visualization, and the solid lines represent performance with visualization. I chose 1000, 5000, 10000, 20000, and 50000 boids for testing. The y-axis is the frames per second (FPS), and the x-axis is the number of boids. All the performances decreased as the number of boids increased. The Naive simulation is affected the most. And the scattered and coherent have a milder impact.
-![](images/Boids.png)
 
 ### Framerate change with increasing block size
 ![](images/BlockSize.png)
