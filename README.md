@@ -45,10 +45,19 @@ Coherent Grid: This implementation works similary to the uniform grid with the a
 <img src="images/boids_V.png" width=500>
 <img src="images/boids_noV.png" width=500>
 
+In the naive implementation, the frame rate drops as the number of particles increases at an exponential rate.
+In the Uniform & Coherent implementations, the performance initially is pretty inefficient and then increases for a while. This increase is probably because the grids become denser. Eventually, the frame rate falls off for both the methods because grid cells become too dense and the search space increases again.
+
 * For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
 <img src="images/blockSize.png" width=500>
 
+Increasing block size at first increases fps because the smaller sizes have unused threads causing an increased number of cycles. This works until about 64 when the performance starts to plateau. This probably has to do with the warp size of 32 with higher block sizes there is not enough warp size to run more threads.
+
 * For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+
+I did experience performance improvements which was expected because we added optimization of sorting the pos and vel arrays and this allows a contiguous memory advantage which boosts its performance.
 
 * Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
 
+Initially, I saw a very slight increase in performance when the cell width is changed from 1X to 2X and checking 27 instead of 8 neighbouring cells. This is likely because determining which of the 8 neighboring cells to check incurs a performance overhead that offsets the savings gained from only checking those cells. 
+But, when the number of boids exceeds 25,000, we begin to observe real performance improvements from using the 2x cell width and checking 8 neighboring cells. This is probably because the benefits of reducing the number of checks outweigh the costs associated with calculating which 8 cells to consider.
