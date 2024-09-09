@@ -761,10 +761,6 @@ void Boids::endSimulation() {
 
   cudaFree(dev_coherentPos);
   cudaFree(dev_coherentVel);
-
-  cudaDeviceSynchronize();
-
-  cudaDeviceReset();
 }
 
 void Boids::unitTest() {
