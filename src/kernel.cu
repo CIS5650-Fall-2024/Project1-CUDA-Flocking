@@ -620,19 +620,25 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 
 }
 
-__global__ void kernRearrangeBuffers(int N, int *particleArrayIndices, int *particleGridIndices, int *gridCellStartIndices, int *gridCellEndIndices ,glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *pos_coherent, glm::vec3 *vel1_coherent)
+__global__ void kernRearrangeBuffers(int N, int *particleArrayIndices ,glm::vec3 *pos, glm::vec3 *vel1, glm::vec3 *pos_coherent, glm::vec3 *vel1_coherent)
 {
   int index = threadIdx.x + (blockIdx.x * blockDim.x);
-  int grid_id = particleGridIndices[index];
-  for(int i = gridCellStartIndices[grid_id]; i <= gridCellEndIndices[grid_id]; i++)
-  {
-    if(particleArrayIndices[i] == index)
-    {
-      pos_coherent[index] = pos[i];
-      vel1_coherent[index] = vel1[i];
-    }
-  }
+  if(index >= N)
+    return;
+  pos_coherent[index] = pos[particleArrayIndices[index]];
+  vel1_coherent[index] = vel1[particleArrayIndices[index]];
   
+}
+
+__global__ void kernRearrangeAndSwapBuffers(int N, int *particleArrayIndices, glm::vec3 *vel2, glm::vec3 *vel1)
+{
+  int index = threadIdx.x + (blockIdx.x * blockDim.x);
+  if(index >= N)
+      return;
+
+  vel2[index] = vel1[particleArrayIndices[index]];
+
+
 }
 
 void Boids::stepSimulationCoherentGrid(float dt) {
@@ -655,19 +661,20 @@ void Boids::stepSimulationCoherentGrid(float dt) {
   // - BIG DIFFERENCE: use the rearranged array index buffer to reshuffle all
   //   the particle data in the simulation array.
   //   CONSIDER WHAT ADDITIONAL BUFFERS YOU NEED
-  kernRearrangeBuffers << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices,dev_pos, dev_vel1, dev_pos_coherent, dev_vel1_coherent);
+  kernRearrangeBuffers << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices,dev_pos, dev_vel1, dev_pos_coherent, dev_vel1_coherent);
   //thrust::copy(dev_pos_coherent, dev_pos_coherent + numObjects, dev_pos);
   //thrust::copy(dev_vel1_coherent, dev_vel1_coherent + numObjects, dev_vel1);
-  cudaError_t err = cudaMemcpy(dev_pos_coherent, dev_pos, numObjects, cudaMemcpyDeviceToDevice);
-  err = cudaMemcpy(dev_vel1_coherent, dev_vel1, numObjects, cudaMemcpyDeviceToDevice);
   // - Perform velocity updates using neighbor search
-  kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos, dev_vel1, dev_vel2);
+  kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_pos_coherent, dev_vel1_coherent, dev_vel2);
   // - Update positions
   kernUpdatePos<<<fullBlocksPerGrid, blockSize >>>(numObjects, dt, dev_pos, dev_vel2);
+ 
   // - Ping-pong buffers as needed. THIS MAY BE DIFFERENT FROM BEFORE.
-  glm::vec3 *temp = dev_vel1;
-  dev_vel1 = dev_vel2;
-  dev_vel2 = temp;
+  // kernRearrangeAndSwapBuffers << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices, dev_vel1, dev_vel2,dev_pos,dev_pos_coherent);
+  std::swap(dev_vel1_coherent,dev_vel2);
+  std::swap(dev_vel1,dev_vel1_coherent);
+  std::swap(dev_pos,dev_pos_coherent);
+
 }
 
 void Boids::endSimulation() {
