@@ -30,11 +30,17 @@ The following images were taken one minute apart.
 ## Performance Analysis:
 Performance was measured using FPS with visualization of the boids disabled so that only the simulation's performance was measured. After a brief 10 second stabilization period, the average FPS was recorded over 20 seconds with varying boid count and block sizes. The three implementations are labeled naive, scattered, and coherent respectively.
 
-# Boid count performance measurement:
+# Boid count performance measurement(no visualization):
 ![](images/boidcountgraph.png)
+
+# Boid count performance measurement(with visualization):
+![](images/boidcountgraphwithvis.png)
 
 # Block size performance measurement:
 ![](images/blocksizegraph.png)
+
+# Outliers:
+Notably the naive method could not run the simulation with 200,000 boids and could barely run the simulation with 100,000. Also the scattered grid threw a CUDA error when the block size was 1024, which is why the data is not present.
 
 # Insights:
 Increasing the number of boids causes a decrease in performance. This is likely caused by the increase in kernel processes as the boid count increases, and the larger number of boids that are checked against to complete the simulation requirements. 
