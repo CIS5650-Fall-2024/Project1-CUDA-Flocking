@@ -7,7 +7,8 @@ Project 1 - Flocking**
 
 ## Demo Gif
 
-![](images/demo.gif)
+Coherent Uniform Grid Boids Simulation, 5000 boids, 128 blockSize
+![](images/demo_2.gif)
 
 ## Features
 
