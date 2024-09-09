@@ -40,6 +40,9 @@ void checkCUDAError(const char* msg, int line = -1) {
 /*! Block size used for CUDA kernel launch. */
 #define blockSize 128
 
+// Enable half cell width (cell width = rule distance)
+#define HALFCELL 1
+
 // LOOK-1.2 Parameters for the boids algorithm.
 // These worked well in our reference implementation.
 #define rule1Distance 5.0f
@@ -89,8 +92,8 @@ int* dev_gridCellEndIndices;   // to this cell?
 
 // LOOK-2.1 - Grid parameters based on simulation parameters.
 // These are automatically computed for you in Boids::initSimulation
-int gridCellCount;
-int gridSideCount;
+unsigned int gridCellCount;
+unsigned int gridSideCount;
 float gridCellWidth;
 float gridInverseCellWidth;
 glm::vec3 gridMinimum;
@@ -158,8 +161,9 @@ void Boids::initSimulation(int N) {
 	checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
 	// LOOK-2.1 computing grid params
-	gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
-	int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
+	float cellWidthFactor = (HALFCELL) ? 1.0f : 2.0f;
+	gridCellWidth = cellWidthFactor * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+	int halfSideCount = (unsigned int)(scene_scale / gridCellWidth) + 1;
 	gridSideCount = 2 * halfSideCount;
 
 	gridCellCount = gridSideCount * gridSideCount * gridSideCount;
@@ -423,10 +427,21 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 	int rule1Neighbours = 0;
 	int rule3Neighbours = 0;
 
+	glm::ivec3 idxStart;
+	glm::ivec3 idxEnd;
+	if (HALFCELL) {
+		idxStart = glm::ivec3(-1);
+		idxEnd = glm::ivec3(2);
+	}
+	else {
+		idxStart = glm::ivec3(idxOffset) - 1;
+		idxEnd = glm::ivec3(idxOffset) + 1;
+	}
+
 	glm::ivec3 localIdx;
-	for (localIdx.z = idxOffset.z - 1; localIdx.z < idxOffset.z + 1; localIdx.z++) {
-		for (localIdx.y = idxOffset.y - 1; localIdx.y < idxOffset.y + 1; localIdx.y++) {
-			for (localIdx.x = idxOffset.x - 1; localIdx.x < idxOffset.x + 1; localIdx.x++) {
+	for (localIdx.z = idxStart.z; localIdx.z < idxEnd.z; localIdx.z++) {
+		for (localIdx.y = idxStart.y; localIdx.y < idxEnd.y; localIdx.y++) {
+			for (localIdx.x = idxStart.x; localIdx.x < idxEnd.x; localIdx.x++) {
 				// calculate x, y, z index for center and neighbouring cells
 				glm::ivec3 globalIdx = idxCenter + localIdx;
 
@@ -620,9 +635,10 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 	// - Update positions
 	// - Ping-pong buffers as needed
 	dim3 fullBlocksPerGrid{ (numObjects + blockSize - 1) / blockSize };
+	dim3 fullBlocksPerGridCells{ (gridCellCount + blockSize - 1) / blockSize };
 
-	kernResetIntBuffer<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_gridCellStartIndices, -1);
-	kernResetIntBuffer<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_gridCellEndIndices, -1);
+	kernResetIntBuffer<<<fullBlocksPerGridCells, blockSize>>>(gridCellCount, dev_gridCellStartIndices, -1);
+	checkCUDAErrorWithLine("kernResetIntBuffer failed!");
 
 	kernComputeIndices<<<fullBlocksPerGrid, blockSize>>>(
 		numObjects, gridSideCount, gridMinimum, gridInverseCellWidth,
@@ -633,7 +649,7 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 	thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects,
 		dev_thrust_particleArrayIndices);
 
-	kernIdentifyCellStartEnd<<<fullBlocksPerGrid, blockSize>>>(gridCellCount, dev_particleGridIndices,
+	kernIdentifyCellStartEnd<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_particleGridIndices,
 		dev_gridCellStartIndices, dev_gridCellEndIndices);
 	checkCUDAErrorWithLine("kernIdentifyCellStartEnd failed!");
 
@@ -673,8 +689,9 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 	// - Ping-pong buffers as needed. THIS MAY BE DIFFERENT FROM BEFORE.
 
 	dim3 fullBlocksPerGrid{ (numObjects + blockSize - 1) / blockSize };
+	dim3 fullBlocksPerGridCells{ (gridCellCount + blockSize - 1) / blockSize };
 
-	kernResetIntBuffer<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_gridCellStartIndices, -1);
+	kernResetIntBuffer << <fullBlocksPerGridCells, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
 	checkCUDAErrorWithLine("kernResetIntBuffer failed!");
 
 	kernComputeIndices<<<fullBlocksPerGrid, blockSize>>>(
@@ -698,7 +715,7 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 	);
 	checkCUDAErrorWithLine("kernReshuffleArray(dev_vel1) failed!");
 
-	kernIdentifyCellStartEnd<<<fullBlocksPerGrid, blockSize>>>(gridCellCount, dev_particleGridIndices,
+	kernIdentifyCellStartEnd<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_particleGridIndices,
 		dev_gridCellStartIndices, dev_gridCellEndIndices);
 	checkCUDAErrorWithLine("kernIdentifyCellStartEnd failed!");
 
