@@ -36,7 +36,10 @@ void checkCUDAError(const char *msg, int line = -1) {
 * Configuration *
 *****************/
 
+#define SINGLE_GRID_WIDTH 0
+
 /*! Block size used for CUDA kernel launch. */
+// test 32 64 128 256 512 1024 
 #define blockSize 128
 
 // LOOK-1.2 Parameters for the boids algorithm.
@@ -159,7 +162,11 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
+#ifdef SINGLE_GRID_WIDTH
+  gridCellWidth = std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#else
   gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+#endif
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -576,6 +583,50 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
     glm::vec3 ali(0.f);
     float neighNum = 0.f;
 
+#ifdef SINGLE_GRID_WIDTH
+    for (int z = -1; z <= 1; ++z)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            for (int x = -1; x <= 1; ++x)
+            {
+                int cellIdx = gridIndex3Dto1D(myMod(currGridCell.x + x, gridResolution), myMod(currGridCell.y + y, gridResolution), myMod(currGridCell.z + z, gridResolution), gridResolution);
+                if (gridCellStartIndices[cellIdx] == -1) continue;
+
+                int start = gridCellStartIndices[cellIdx];
+                int end = gridCellEndIndices[cellIdx];
+
+                for (int j = start; j <= end; ++j)
+                {
+                    if (j == index) continue;
+
+                    float dist = glm::length(pos[j] - selfPos);
+
+                    // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
+                    if (dist < rule1Distance)
+                    {
+                        coh += pos[j];
+                        neighNum += 1.f;
+                    }
+
+                    // Rule 2: boids try to stay a distance d away from each other
+                    if (dist < rule2Distance)
+                    {
+                        sep -= (pos[j] - selfPos);
+                    }
+
+                    // Rule 3: boids try to match the speed of surrounding boids
+                    if (dist < rule3Distance)
+                    {
+                        ali += vel1[j];
+                    }
+                }
+
+            }
+        }
+    }
+#else
+
     for (int i = 0; i < 8; ++i)
     {
         if (gridCellStartIndices[nebrs[i]] == -1) continue;
@@ -609,6 +660,8 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
             }
         }
     }
+
+#endif
 
 
     if (neighNum > 0.f)
@@ -780,6 +833,7 @@ void Boids::endSimulation() {
   cudaFree(dev_particleGridIndices);
   cudaFree(dev_gridCellEndIndices);
   cudaFree(dev_gridCellStartIndices);
+  cudaFree(dev_stageBuffer);
 }
 
 void Boids::unitTest() {
