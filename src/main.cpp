@@ -21,7 +21,7 @@
 #define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int N_FOR_VIS =5000;
 const float DT = 0.2f;
 
 /**
@@ -191,6 +191,10 @@ void initShaders(GLuint * program) {
     // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not
     // use this buffer
 
+      cudaEvent_t start, stop;
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+
     float4 *dptr = NULL;
     float *dptrVertPositions = NULL;
     float *dptrVertVelocities = NULL;
@@ -198,6 +202,7 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertPositions, boidVBO_positions);
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
+    cudaEventRecord(start);
     // execute the kernel
     #if UNIFORM_GRID && COHERENT_GRID
     Boids::stepSimulationCoherentGrid(DT);
@@ -207,12 +212,19 @@ void initShaders(GLuint * program) {
     Boids::stepSimulationNaive(DT);
     #endif
 
+    cudaEventRecord(stop);
+
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
     #endif
     // unmap buffer object
     cudaGLUnmapBufferObject(boidVBO_positions);
     cudaGLUnmapBufferObject(boidVBO_velocities);
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("Effective Bandwidth (GB/s): %fn", N_FOR_VIS * 4 * 3 / milliseconds / 1e6);
+    std::cout << std::endl;
   }
 
   void mainLoop() {
