@@ -9,7 +9,7 @@ Project 0 Getting Started
 
 # Boid Simulation
 
-![](images/Flocking_Video.mp4)
+![](images/Flocking_GIF.gif)
 
 # Performance Analysis
 
