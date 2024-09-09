@@ -46,7 +46,7 @@ Coherent Grid: This implementation works similary to the uniform grid with the a
 <img src="images/boids_noV.png" width=500>
 
 * For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
-<img src="images/blocksize.png" width=500>
+<img src="images/blockSize.png" width=500>
 
 * For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
 
