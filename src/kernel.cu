@@ -559,7 +559,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
                 int end = gridCellEndIndices[neighbor_grid_idx];
                 if (start == -1 || end == -1) continue;
                 for (int idx = start; idx <= end; idx++) {
-                    if (pos[idx] == iPos) continue;
+                    if (i == idx) continue;
 
                     float distance = glm::distance(iPos, pos[idx]);
                     if (distance < rule1Distance) {
@@ -680,11 +680,11 @@ void Boids::stepSimulationCoherentGrid(float dt) {
         gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices,
         dev_coherent_pos, dev_coherent_vel, dev_vel2);
 
-    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel2);
+    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_coherent_pos, dev_vel2);
 
-    glm::vec3* vel_temp = dev_vel1;
-    dev_vel1 = dev_vel2;
-    dev_vel2 = vel_temp;
+    std::swap(dev_pos, dev_coherent_pos);
+    std::swap(dev_vel1, dev_coherent_vel);
+    std::swap(dev_vel1, dev_vel2);
 }
 
 void Boids::endSimulation() {
