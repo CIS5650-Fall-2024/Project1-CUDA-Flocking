@@ -42,8 +42,12 @@ Coherent Grid: This implementation works similary to the uniform grid with the a
 ### Performance Analysis
 
 * For each implementation, how does changing the number of boids affect performance? Why do you think this is?
-<img src="images/boids_V.png" width=500>
-<img src="images/boids_noV.png" width=500>
+<table>
+  <tr>
+    <img src="images/boids_V.png" width=500>
+    <img src="images/boids_noV.png" width=500>
+  </tr>
+</table>
 
 In the naive implementation, the frame rate drops as the number of particles increases at an exponential rate.
 In the Uniform & Coherent implementations, the performance initially is pretty inefficient and then increases for a while. This increase is probably because the grids become denser. Eventually, the frame rate falls off for both the methods because grid cells become too dense and the search space increases again.
