@@ -447,7 +447,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
 				// skip calculation if cell index is out of grid range
 				if (glm::any(glm::lessThan(globalIdx, glm::ivec3(0))) ||
-					glm::any(glm::greaterThan(globalIdx, glm::ivec3(gridResolution)))) continue;
+					glm::any(glm::greaterThan(globalIdx, glm::ivec3(gridResolution - 1)))) continue;
 
 				// compute 1D index of cell
 				int gridIndex = gridIndex3Dto1D(
@@ -543,7 +543,7 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 
 				// skip calculation if cell index is out of grid range
 				if (glm::any(glm::lessThan(globalIdx, glm::ivec3(0))) ||
-					glm::any(glm::greaterThan(globalIdx, glm::ivec3(gridResolution)))) continue;
+					glm::any(glm::greaterThan(globalIdx, glm::ivec3(gridResolution - 1)))) continue;
 
 				// compute 1D index of cell
 				int gridIndex = gridIndex3Dto1D(
@@ -691,7 +691,7 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 	dim3 fullBlocksPerGrid{ (numObjects + blockSize - 1) / blockSize };
 	dim3 fullBlocksPerGridCells{ (gridCellCount + blockSize - 1) / blockSize };
 
-	kernResetIntBuffer << <fullBlocksPerGridCells, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
+	kernResetIntBuffer<<<fullBlocksPerGridCells, blockSize>>>(gridCellCount, dev_gridCellStartIndices, -1);
 	checkCUDAErrorWithLine("kernResetIntBuffer failed!");
 
 	kernComputeIndices<<<fullBlocksPerGrid, blockSize>>>(
