@@ -37,9 +37,10 @@ For this test case, block size is kept constant to 256.
 
 The three methods defined above are further compared for different block size to see difference in performance. For this particular test case, boid count is kept constant to 20000.
 
+![](images/FPSvsBlockSizeChart.png)
+
 ![](images/FPSvsBlockSize.png)
 
-![](images/FPSvsBlockSizeChart.png)
 
 # Some project insights
 
