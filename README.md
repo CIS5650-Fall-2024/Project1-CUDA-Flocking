@@ -27,7 +27,7 @@ The three methods compared are:
 
 ![](images/ComparativeChartSheet.png)
 
-![](images/Comparative Chart.png)
+![](images/ComparativeChart.png)
 
 
 
