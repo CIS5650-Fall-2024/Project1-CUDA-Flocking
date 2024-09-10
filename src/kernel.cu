@@ -442,6 +442,15 @@ __global__ void kernUpdateVelNeighborSearchScattered(
   for (int z = startSearchCellClamped.z; z <= endSearchCellClamped.z; z++) {
     for (int y = startSearchCellClamped.y; y <= endSearchCellClamped.y; y++) {
       for (int x = startSearchCellClamped.x; x <= endSearchCellClamped.x; x++) {
+        glm::vec3 cellMin = gridMin + glm::vec3(x, y, z) * cellWidth;
+        glm::vec3 cellMax = cellMin + glm::vec3(cellWidth);
+        glm::vec3 closestPointInCell = glm::clamp(thisPos, cellMin, cellMax);
+
+        float distanceToCell = glm::distance(thisPos, closestPointInCell);
+        if (distanceToCell > neighborhoodDistance) {
+          continue;
+        }
+
         int neighborCellIndex1D = gridIndex3Dto1D(x, y, z, gridResolution);
         int startIndex = gridCellStartIndices[neighborCellIndex1D];
         int endIndex = gridCellEndIndices[neighborCellIndex1D];
@@ -527,6 +536,15 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   for (int z = startSearchCellClamped.z; z <= endSearchCellClamped.z; z++) {
     for (int y = startSearchCellClamped.y; y <= endSearchCellClamped.y; y++) {
       for (int x = startSearchCellClamped.x; x <= endSearchCellClamped.x; x++) {
+        glm::vec3 cellMin = gridMin + glm::vec3(x, y, z) * cellWidth;
+        glm::vec3 cellMax = cellMin + glm::vec3(cellWidth);
+        glm::vec3 closestPointInCell = glm::clamp(thisPos, cellMin, cellMax);
+
+        float distanceToCell = glm::distance(thisPos, closestPointInCell);
+        if (distanceToCell > neighborhoodDistance) {
+          continue;
+        }
+
         int neighborCellIndex1D = gridIndex3Dto1D(x, y, z, gridResolution);
         int startIndex = gridCellStartIndices[neighborCellIndex1D];
         int endIndex = gridCellEndIndices[neighborCellIndex1D];
@@ -613,7 +631,7 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 
   // - Naively unroll the loop for finding the start and end indices of each
   //   cell's data pointers in the array of boid indices
-  // kernResetIntBuffer<<<fullBlocksPerGrid, blockSize>>>(gridCellCount, dev_gridCellEndIndices, -1);
+  kernResetIntBuffer<<<fullBlocksPerGrid, blockSize>>>(gridCellCount, dev_gridCellEndIndices, -1);
   kernIdentifyCellStartEnd<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
   
   // - Perform velocity updates using neighbor search
@@ -641,7 +659,7 @@ void Boids::stepSimulationCoherentGrid(float dt) {
 
   // - Naively unroll the loop for finding the start and end indices of each
   //   cell's data pointers in the array of boid indices
-  // kernResetIntBuffer<<<fullBlocksPerGrid, blockSize>>>(gridCellCount, dev_gridCellEndIndices, -1);
+  kernResetIntBuffer<<<fullBlocksPerGrid, blockSize>>>(gridCellCount, dev_gridCellEndIndices, -1);
   kernIdentifyCellStartEnd<<<fullBlocksPerGrid, blockSize>>>(numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
 
   // - BIG DIFFERENCE: use the rearranged array index buffer to reshuffle all
