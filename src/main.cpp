@@ -16,13 +16,21 @@
 // ================
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
-#define VISUALIZE 1
-#define UNIFORM_GRID 0
+#define VISUALIZE 0
+#define UNIFORM_GRID 1
 #define COHERENT_GRID 0
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
 const int N_FOR_VIS = 5000;
 const float DT = 0.2f;
+
+// TIMING STUFF
+const float TIMING_DURATION = 10.0f;
+
+float cudaTimeElapsed_s = 0.0f;
+int numFrames = 0;
+bool printedFps = 0;
+cudaEvent_t start, stop;
 
 /**
 * C main function.
@@ -198,6 +206,10 @@ void initShaders(GLuint * program) {
     cudaGLMapBufferObject((void**)&dptrVertPositions, boidVBO_positions);
     cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
+    // starting timing
+    float elapsedTime_ms;
+    cudaEventRecord(start);
+
     // execute the kernel
     #if UNIFORM_GRID && COHERENT_GRID
     Boids::stepSimulationCoherentGrid(DT);
@@ -210,6 +222,19 @@ void initShaders(GLuint * program) {
     #if VISUALIZE
     Boids::copyBoidsToVBO(dptrVertPositions, dptrVertVelocities);
     #endif
+
+    // stopping timing
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&elapsedTime_ms, start, stop);
+    cudaTimeElapsed_s += elapsedTime_ms / 1e3;
+    numFrames++;
+
+    if (cudaTimeElapsed_s > TIMING_DURATION && !printedFps) {
+        std::cout << "Average fps: " << numFrames / cudaTimeElapsed_s << std::endl;
+        printedFps = 1;
+    }
+
     // unmap buffer object
     cudaGLUnmapBufferObject(boidVBO_positions);
     cudaGLUnmapBufferObject(boidVBO_velocities);
@@ -220,8 +245,11 @@ void initShaders(GLuint * program) {
     double timebase = 0;
     int frame = 0;
 
-    Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
+    //Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
+
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
 
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
@@ -261,6 +289,9 @@ void initShaders(GLuint * program) {
     }
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
   }
 
 
