@@ -103,3 +103,19 @@ There is another optimization that can be done which should **greatly** increase
 
 Include screenshots, analysis, etc. (Remember, this is public, so don't put
 anything here that you don't want to share with the world.)
+
+This was done with release mode, and vsync turned off.
+TODO: describe methodology, changes & comparisons for changes. Give plots
+
+Mention hypotheses and insights
+
+Answer these bullets
+Include required graphs
+
+## Extra Bloopers :D
+
+Here are some fun things I came accross doing this project!
+
+I was trying to push how far the simulation could go, so here it is running on 1 million boids! This is the coherent memory uniform grid approach, and it's still running at over 100 fps!
+
+![coherent memory with 1000000 boids](images/simulation/flocking-1000000-coherent.gif)
