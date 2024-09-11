@@ -27,4 +27,5 @@ that 27-cell is slower simply because there are more cells to check!
 - Framerate change with increasing # of boids for naive, scattered uniform grid, and coherent uniform grid (without visualization)
      ![Perforamnce](images/boid.png)
 - Framerate change with increasing block size
+
    ![Perforamnce](images/fp.png)
