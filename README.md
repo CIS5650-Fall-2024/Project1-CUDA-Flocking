@@ -1,6 +1,8 @@
 **University of Pennsylvania, CIS 5650: GPU Programming and Architecture,
 Project 1 - Flocking**
 
+![Boid Simualtion using Coherent Grid](images/ffff.gif)
+
 * Maya Diaz Huizar
 * Tested on: Windows 10, R7-5700X @ 3.8GHz 32GB, RTX 3080 8GB
 
@@ -21,14 +23,7 @@ Why or why not? Be careful: it is insufficient (and possibly incorrect) to say
 that 27-cell is slower simply because there are more cells to check!
     * 
 
-## Part 4: Write-up
-
-1. Take a screenshot of the boids **and** use a gif tool like [licecap](http://www.cockos.com/licecap/) to record an animations of the boids with a fixed camera.
-Put this at the top of your README.md. Take a look at [How to make an attractive
-GitHub repo](https://github.com/pjcozzi/Articles/blob/master/CIS565/GitHubRepo/README.md).
-2. Add your performance analysis. Graphs to include:
-- Framerate change with increasing # of boids for naive, scattered uniform grid, and coherent uniform grid (with and without visualization)
+## Part 4: Performance Write-up
+- Framerate change with increasing # of boids for naive, scattered uniform grid, and coherent uniform grid (without visualization)
+     ![Perforamnce](images/boid.png)
 - Framerate change with increasing block size
-
-Include screenshots, analysis, etc. (Remember, this is public, so don't put
-anything here that you don't want to share with the world.)
