@@ -124,7 +124,7 @@ Now comparing the Uniform approach and Coherent approach, we see that for low bo
 
 It's also interesting to compare the performance with and without visualization. It seems like adding the visualization just slightly decreases the total performance evenly for low boid counts, but this effect is less pronounced for high boid counts. This again makes sense because for low boid counts, drawing the visualization takes up much of the time and compute compared to the calculation of the boids' position and velocity. However, for higher boid counts, this position/velocity calculation is proportionally much larger than the time needed to draw the visualization, so adding it or removing it doesn't make as much of a difference.
 
-There is another intriguing part of this data, and that's that the performance for Uniform and Coherent actually _increases_ slightly for around 500 to 1000 boids (see the bolded cells in the data). There is a possibility this is just due to a random variation in the workload of my computer, but it's also worth considering if there could be other causes. One potential explanation for this occurance is that TODO!!!.
+There is another intriguing part of this data, and that's that the performance for Uniform and Coherent actually _increases_ slightly for around 500 to 1000 boids (see the bolded cells in the data). There is a possibility this is just due to a random variation in the workload of my computer, but it's also worth considering if there could be other causes. One potential explanation for this occurance is that with fewer than 1000 boids, we are undersaturating the GPU, and it doesn't have enough work to do (so it's partially idle). As a result, it's wasting time and compute. However, when we have more boids, there are enough threads running so that the GPU is saturated and doing everything it can. This would cause the performance to go up, but then as the number of boids increases further, of course the performance would stop dropping again.
 
 ### Block Size vs. Performance
 
@@ -135,16 +135,37 @@ This analysis was run with block sizes of 32, 64, 128, 256, 512, and 1024, the m
 <img src="images/charts/block-size-fps-novis.jpg" alt="block size vs fps no visualization" width="51.5%">
 <img src="images/charts/block-size-fps.png" alt="block size vs fps data" width="47.5%">
 
-At a quick glance of these graphs, it really doesn't look like the block size has much of an effect on the performance. The reason this might be the case is that again, the performance in this project is mostly determined by the boid position/velocity calculation, so as long as enough work is being given to the GPU, there should not be much of a difference. The difference we see here is indeed very small when compared to all the performance differences we were seeing with the varying block size.
+At a quick glance of these graphs, it really doesn't look like the block size has much of an effect on the performance. The reason this might be the case is that again, the performance in this project is mostly determined by the boid position/velocity calculation, so as long as enough work is being given to the GPU, there should not be much of a difference. The difference we see here is indeed very small when compared to all the performance differences we were seeing with the varying block size (no more than a 20% change here).
 
-However, there are a few noticable changes in this graph that are worth talking about. The
+However, there are a few noticable changes in this graph that are worth talking about. We can see in all three methods that the performance with small enough block sizes (32 threads) is slightly lower than the others. As alluded to in the previous paragraphs, this is likely because the GPU is not being given enough to do. With such a small block size, there might be resources in each SM that are going unused, causing a drop in performance, and the GPU is being underutilized. Likewise, there is also a performance drop at a block size of 1024 on the other end. This is again probably because the GPU is running out of resources on each SM, so it's can't process he threads as quickly as would be preferred.
 
-### NEXT SECTION
+This analysis demonstrates how important it is to find the sweet spot for the block size, and it can also be dependent on hardware.
+
+### Cell Width vs. Performance
+
+Now I will analyze the impact of the well width on the performance. Here, the cell width refers to the width of the cells in the uniform grid for both the Uniform and Coherent approaches. This width can make a very large difference in the performance because it completely changes how the algorithm behaves. From here on out, I will refer to the "neighborhood distance" as the maximum distance in which a boid checks for neighbors that might affect its position and velocity (the radius of the search).
+
+Now with a very small cell width (much smaller than the neighborhood distance), we will have to check many, many cells in order to cover the entire neighborhood for each boid. As a result, there will be many more accesses to the cell data, but on the other hand each cell will probably contain few boids, if any. It might be a waste to have to check all of these cells, or maybe there's a perfect amount so that the amount of the grid we have to search is optimized.
+
+On the flipside, with a very large cell width (larger than the neighborhood distance for example), we will only have to check the current cell, and possibly the direct neighboring cells in order to cover the current boid's neighborhood. This could be a benefit, but with this approach each cell might have lots of boids. You can imagine in the limit as the cell width increases, eventually it covers the entire grid and we're left with the naive brute force approach. Thus finding the sweet spot of the cell size also has a large impact on the performance.
+
+Now since the actual width is a relative measurement, we need to define a baseline. From here on out, I will discuss the "cell width scale", which is the scale of the cell in proportion to the neighborhood distance. For example, if the cell width scale (sometimes referred to as just cell width) is 2.0, this means the width of the cell is twice the width of the neighborhood distance (the diameter of the neighborhood). If the cell width scale is 0.5, then the cell width is half the width of the neighorhood distance. If the cell width scale is 1.0, then the cell width equals the neighborhood distance.
+
+Now what does this mean for checking neighbors? It means if the cell width scale is 2.0 (or larger), then only the 2x2x2 grid of neighboring cells need to be checked. This is because at this scale, the neighborhood diameter is at most the size of the cell, so it can entirely fit into a 2x2x2 area (the offset on which side is determined by how the boid is offset in its own cell). Thus we need to check at most 8 cells. If the cell width scale is between 1.0 and 2.0, then we will either need to check a 2x2x2 or 3x3x3 depending on where the boid is in its cell. If the cell width scale is 1.0, then we must check a 3x3x3 area around the boid, and if it's smaller than 1.0, then we will always need to check at least a 3x3x3 region.
+
+I ran the analysis with cell width scales of 0.50, 0.67, 0.9, 1.0, 1.1, 1.5, 2.0, 3.0, and 4.0. For the same reason as with the block size analysis, I decided on using 50000 boids, and I used a block size of 128. Here is the data:
+
+<img src="images/charts/cell-width-fps-novis.jpg" alt="cell width vs fps no visualization" width="56.5%">
+<img src="images/charts/cell-width-fps.png" alt="cell width vs fps data" width="42.5%">
+
+Now you might be wondering why I chose these cell width scales. Well at first, I actually only ran it with 0.5, 1.0, 2.0, 3.0, and 4.0. But that gave me a very interesting drop in performance only around 1.0. In order to investigate what was happening here in more depth, I ran a few more tests with cell width scales near this range. This let me get a better picture of what was going on.
+
+First of all, there's no need to analyze the Naive approach here because the cell width doesn't appect how it runs at all (which is exactly what the data shows anyway). Now what exactly is going on with the other two approaches? For the high cell width values (at least 2.0), we see that the performance decreases. This makes sense because past this point, we always need to check a 2x2x2 grid at most, but the cells are getting larger and larger and contain more and more boids. As a result, even though we're still checking the same small number of cells, the number of boids we need to check is increasing. In the limit, this approaches the Naive method, so it makes sense that the performance drops off past 2.0.
+
+TODO: Keep explaining (periodic drop off, one at 1/2.25)?
 
 TODO: describe methodology, changes & comparisons for changes. Give plots
-
 Mention hypotheses and insights
-
 Answer these bullets
 Include required graphs
 
