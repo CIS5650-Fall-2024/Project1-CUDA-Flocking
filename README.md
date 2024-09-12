@@ -99,18 +99,61 @@ A breakdown of the performance vs. cell size tradeoff will be given below.
 
 There is another optimization that can be done which should **greatly** increase performance, however I did not do it for this project. It involves using shared memory in the GPU to reduce global memory access even further, but implementing it would require a vastly different algorithm. This is because of the limited size of shared memory, we need to be very careful about which boids' information we store in there and when. Because the neighborhood around each boid might contain different cells per boid, to use the shared memory effecively accross boids we would need a different method of partitioning the simulation space. A paper describing such an algorithm can be found [here](https://diglib.eg.org/server/api/core/bitstreams/79528ffd-9609-4232-bb81-57819e7ae747/content), and this is something that would be great to come back to and implement.
 
-## TODO Performance Analysis
+## Performance Analysis
 
-Include screenshots, analysis, etc. (Remember, this is public, so don't put
-anything here that you don't want to share with the world.)
+First I will discuss the measurement of performance used for the analysis below. They are all comparing FPS (frames per second), where the time is measured by the GLFW timer. The numbers given below correspond to the average FPS over the first 10 seconds of running the program (averaged over 3 tries due to the random generation of boid positions). To find the average FPS over the first 10 seconds, first the number of frames is stored (which is how many iterations of the loop finished), divided by the total time it took to compute all those frames (so not quite 10 but very close, as this should be the total time for every frame to have been computed).
 
-This was done with release mode, and vsync turned off.
+For the below comparisons, they were all done in Release mode, and with Vertical Sync (vsync) turned off. The specs of the computer they were run on is mentioned at the very top. All of the raw data for these runs can be found in the `simulation-data.xlsx` file [here](simulation-data.xlsx), although screenshots are provided throughout for convenience.
+
+### Boid Count vs. Performance
+
+The first performance analysis done was varying the number of boids. Of course, with more boids one would expect the performance to go down while in general, the optimized versions do better. These were run on 100, 500, 1000, 5000, 10000, 50000, 100000, and 500000 boids, each with a block size of 128 and cell width scale of 2 (explained later).
+
+Here are the graphs of the performance tradeoff with and without the visualization respectively, for each of the three methods (which from here on out will be referred to as "Naive", "Uniform", and "Coherent"):
+
+<img src="images/charts/boid-fps-vis-log.jpg" alt="boid count vs fps with visualization log" width="49%">
+<img src="images/charts/boid-fps-novis-log.jpg" alt="boid count vs fps no visualization log" width="49%">
+
+Note these are given in log scale, and if you are interested in seeing the version of this chart without the log-scaled axes, check out the appendix. Below is a summary of the data:
+
+<img src="images/charts/boid-fps.png" alt="boid count vs fps data" width="60%">
+
+There are a few interesting things to note about these graphs. Starting with the Naive implementation, we see that as the boid count goes up, performance does indeed drop. However, we see that initially, for _very_ low boid counts (less than 1000), the performance for this is actually better than for Uniform or Coherent. The explanation for this is that the Naive method just iterates through every boid, so if there are few boids, this isn't really a big deal. It's not hard to iterate through only a few hundred boids, whereas the uniform grid adds more overhead and cells that have to be checked. Thus this result makes sense. But for large boid counts, iterating through them all would of course only get slower and slower due to its time complexity of O(n^2). The Uniform and Coherent approaches can handle many more boids due to their implementation.
+
+Now comparing the Uniform approach and Coherent approach, we see that for low boid counts (up to about 10000), they perform relatively similar to themselves and to each other. This is because for Coherent, the optimization reduces the number of global memory accesses, but for low boid counts these accesses aren't the limiting factor for compute, but instead it's something elsek (e.g. the overhead for setting up the grid). As a result, limiting these accesses doesn't help all that much. However, as we get to large boid counts, then this does start making a difference. This is why they both don't see much of a performance drop when increasing boid counts below 10000. The bulk of the work doesn't come from the calculations of boid positions/velocities, but rather the overhead of managing the grid.
+
+It's also interesting to compare the performance with and without visualization. It seems like adding the visualization just slightly decreases the total performance evenly for low boid counts, but this effect is less pronounced for high boid counts. This again makes sense because for low boid counts, drawing the visualization takes up much of the time and compute compared to the calculation of the boids' position and velocity. However, for higher boid counts, this position/velocity calculation is proportionally much larger than the time needed to draw the visualization, so adding it or removing it doesn't make as much of a difference.
+
+There is another intriguing part of this data, and that's that the performance for Uniform and Coherent actually _increases_ slightly for around 500 to 1000 boids (see the bolded cells in the data). There is a possibility this is just due to a random variation in the workload of my computer, but it's also worth considering if there could be other causes. One potential explanation for this occurance is that TODO!!!.
+
+### Block Size vs. Performance
+
+The effect of the block size/count versus performance was also measured. Here, the block size means the number of threads that were run in each block for all of the calls to the GPU. The reason one might want to investigate block size is that it can have some differences depending on the hardware the code is run on. Each GPU has a different number of SMs, and each SM can only handle a limited number of blocks and threads at a time. If a block size is too small, then the SM's resources might not be fully utilized, and there is GPU compute power that is being wasted. However, if the block size is too large, then the resources available to each SM might become exhausted (like shared memory or registers). This would cause fewer blocks to be scheduled, and thus reduce the parallelism.
+
+This analysis was run with block sizes of 32, 64, 128, 256, 512, and 1024, the max allowable size. I decided on using 50000 boids for this analysis because it seemed like an amount where the benefits of each method were apparent, and there were noticable performance differences. However one future avenue for performance analysis might be to look into the effect of block size at different boid counts. They were also run with a cell width scale of 2.
+
+<img src="images/charts/block-size-fps-novis.jpg" alt="block size vs fps no visualization" width="51.5%">
+<img src="images/charts/block-size-fps.png" alt="block size vs fps data" width="47.5%">
+
+At a quick glance of these graphs, it really doesn't look like the block size has much of an effect on the performance. The reason this might be the case is that again, the performance in this project is mostly determined by the boid position/velocity calculation, so as long as enough work is being given to the GPU, there should not be much of a difference. The difference we see here is indeed very small when compared to all the performance differences we were seeing with the varying block size.
+
+However, there are a few noticable changes in this graph that are worth talking about. The
+
+### NEXT SECTION
+
 TODO: describe methodology, changes & comparisons for changes. Give plots
 
 Mention hypotheses and insights
 
 Answer these bullets
 Include required graphs
+
+### Appendix
+
+Here is the graphs of the boid count versus FPS without the log scale:
+
+<img src="images/charts/boid-fps-vis.jpg" alt="boid count vs fps with visualization" width="49%">
+<img src="images/charts/boid-fps-novis.jpg" alt="boid count vs fps no visualization" width="49%">
 
 ## Extra Bloopers :D
 
