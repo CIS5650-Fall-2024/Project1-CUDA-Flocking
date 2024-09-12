@@ -54,6 +54,9 @@ void checkCUDAError(const char *msg, int line = -1) {
 /*! Size of the starting area in simulation space. */
 #define scene_scale 100.0f
 
+/*! Ration of width of each cell to neighborhood distance. (either 1 or 2) */
+#define CELL_WIDTH_MAX_DIST_RATIO 2
+
 /***********************************************
 * Kernel state (pointers are device pointers) *
 ***********************************************/
@@ -157,7 +160,8 @@ void Boids::initSimulation(int N) {
   checkCUDAErrorWithLine("kernGenerateRandomPosArray failed!");
 
   // LOOK-2.1 computing grid params
-  gridCellWidth = 2.0f * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
+
+  gridCellWidth = float(CELL_WIDTH_MAX_DIST_RATIO) * std::max(std::max(rule1Distance, rule2Distance), rule3Distance);
   int halfSideCount = (int)(scene_scale / gridCellWidth) + 1;
   gridSideCount = 2 * halfSideCount;
 
@@ -431,17 +435,23 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 
     // - Identify which cells may contain neighbors. This isn't always 8.
     glm::vec3 cellCenter3D = (glm::vec3(gridIdx3D) + 0.5f) * cellWidth + gridMin;
-    glm::bvec3 checkIdx = glm::lessThan(currPos, cellCenter3D);
-
-    glm::ivec3 startIdx = - glm::ivec3(checkIdx);
-    glm::ivec3 endIdx = 1 - glm::ivec3(checkIdx);
+    glm::ivec3 startIdx;
+    glm::ivec3 endIdx;
+    if (CELL_WIDTH_MAX_DIST_RATIO == 1) {
+        startIdx = glm::ivec3(-1);
+        endIdx = glm::ivec3(1);
+    }
+    else {
+        glm::bvec3 checkIdx = glm::lessThan(currPos, cellCenter3D);
+        startIdx = -glm::ivec3(checkIdx);
+        endIdx = 1 - glm::ivec3(checkIdx);
+    }
 
     glm::vec3 perceived_center = glm::vec3(0.0f);
     glm::vec3 perceived_velocity = glm::vec3(0.0f);
     glm::vec3 c = glm::vec3(0.0f);
     int neighbors1 = 0;
     int neighbors3 = 0;
-
 
     // - For each cell, read the start/end indices in the boid pointer array.
     for (int i = startIdx.x; i <= endIdx.x; i++) {
@@ -451,9 +461,7 @@ __global__ void kernUpdateVelNeighborSearchScattered(
                 glm::ivec3 currGridIdx = gridIdx3D + glm::ivec3{ i,j,k };
                 glm::ivec3 upperLimit = glm::ivec3(gridResolution - 1);
 
-                if (upperLimit.x <= currGridIdx.x <= 0 || upperLimit.y <= currGridIdx.y <= 0 || upperLimit.z <= currGridIdx.z <= 0)
-                    ;
-                else
+                if (!(upperLimit.x <= currGridIdx.x <= 0 || upperLimit.y <= currGridIdx.y <= 0 || upperLimit.z <= currGridIdx.z <= 0))
                     return;
 
                 int gridIdx1D = gridIndex3Dto1D(currGridIdx.x, currGridIdx.y,
