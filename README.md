@@ -26,19 +26,13 @@ In this project, I implemented a GPU-based simulation of flocking behavior using
 ## Implementations
 
 ### 1. Naive Boids Algorithm Implementation
-
 The naive approach calculates interactions between all pairs of boids, leading to a computational complexity of O(n^2).
 
----
 
 ### 2. Uniform Grid Scattered Search
-
 This method uses a uniform grid to partition space and limit boid interactions to neighboring grid cells, improving efficiency.
 
----
-
 ### 3. Coherent Grid Memory Access
-
 Optimized memory access by sorting boids based on their grid cells, enhancing data locality and overall performance.
 
 ---
