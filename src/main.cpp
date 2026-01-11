@@ -16,12 +16,17 @@
 // ================
 
 // LOOK-2.1 LOOK-2.3 - toggles for UNIFORM_GRID and COHERENT_GRID
+// NOTE: Apart from setting this to 0, remember to also turn off VSync in NVIDIA Control Panel.
+// VSync caps your frame rate to the monitor’s refresh (e.g., 60 Hz), which hides the true performance of
+// the CUDA boid simulation and also adds extra synchronization you don’t want when profiling.
 #define VISUALIZE 1
-#define UNIFORM_GRID 0
-#define COHERENT_GRID 0
+#define LIMIT_FRAMES 0 // turn this on for profiling if you want to limit the number of frames
+#define UNIFORM_GRID 1
+#define COHERENT_GRID 1
 
 // LOOK-1.2 - change this to adjust particle count in the simulation
-const int N_FOR_VIS = 5000;
+const int maxFrames = 10000; // the maximum number of frames to profile
+const int N_FOR_VIS = 100000;
 const float DT = 0.2f;
 
 /**
@@ -219,14 +224,21 @@ void initShaders(GLuint * program) {
     double fps = 0;
     double timebase = 0;
     int frame = 0;
+    int totalFrames = 0;
 
     Boids::unitTest(); // LOOK-1.2 We run some basic example code to make sure
                        // your CUDA development setup is ready to go.
 
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
-
       frame++;
+      totalFrames++;
+#if LIMIT_FRAMES
+      if (totalFrames > maxFrames) {
+        break;
+      }
+#endif
+
       double time = glfwGetTime();
 
       if (time - timebase > 1.0) {
@@ -259,6 +271,7 @@ void initShaders(GLuint * program) {
       glfwSwapBuffers(window);
       #endif
     }
+
     glfwDestroyWindow(window);
     glfwTerminate();
   }
